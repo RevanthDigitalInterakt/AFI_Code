@@ -1,72 +1,35 @@
-
-# import boto3
-# from botocore.exceptions import ClientError
-
-# secret_name = "afi/crm/test"
-# region_name = "eu-north-1"
-
-#     # Create a Secrets Manager client
-# session = boto3.session.Session()
-# client = session.client(
-#     service_name='secretsmanager',
-#     region_name=region_name
-# )
-
-# def get_secret(event,context):
-
-    
-#     try:
-#         get_secret_value_response = client.get_secret_value(
-#             SecretId=secret_name
-#         )
-#         print(get_secret_value_response)
-#         secret = get_secret_value_response['SecretString']
-#         print(secret)
-#     except ClientError as e:
-#         # For a list of exceptions thrown, see
-#         # https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
-#         raise e
-
-   
-
-#     # Your code goes here.
-
 import boto3
+import json
 from botocore.exceptions import ClientError
 
-# Set the secret name and region
-secret_name = "afi/crm/test"
-region_name = "eu-north-1"
+# Function to fetch secret from AWS Secrets Manager
+def get_secret(secret_name: str, region_name: str = "eu-north-1"):
+    # Create a Secrets Manager client
+    session = boto3.session.Session()
+    client = session.client(service_name="secretsmanager", region_name=region_name)
 
-# Create a Secrets Manager client
-session = boto3.session.Session()
-client = session.client(
-    service_name='secretsmanager',
-    region_name=region_name
-)
-
-def get_secret(event, context):
     try:
-        # Retrieve the secret value
-        get_secret_value_response = client.get_secret_value(
-            SecretId=secret_name
-        )
-        print("Secret retrieved successfully:", get_secret_value_response)
+        # Retrieve the secret
+        response = client.get_secret_value(SecretId=secret_name)
         
-        # Access the secret value
-        secret = get_secret_value_response['SecretString']
-        print("Secret string:", secret)
-
-        return secret  # Return the secret to the calling function or log it
-
+        # Secrets Manager stores the secret in a string format
+        if "SecretString" in response:
+            secret = response["SecretString"]
+            return json.loads(secret)  # Convert it to a Python dictionary if it's a JSON string
+        else:
+            # If the secret is binary (rare case), decode it
+            decoded_secret = response["SecretBinary"]
+            return decoded_secret.decode("utf-8")
     except ClientError as e:
-        print(f"An error occurred: {e}")
-        raise e
+        print(f"Error fetching secret: {e}")
+        return None
 
-# Example for local testing
-# If you're testing locally, this will call the function and pass empty event/context.
-# In AWS Lambda, the event and context are passed automatically.
+# Example usage
 if __name__ == "__main__":
-    event = {}  # Empty event for testing locally
-    context = {}  # Empty context for testing locally
-    get_secret(event, context)
+    secret_name = "afi/crm/test"  # Replace with your secret's name
+    secret = get_secret(secret_name)
+    
+    if secret:
+        print("Fetched Secret:", secret)
+    else:
+        print("Failed to fetch secret")

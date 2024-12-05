@@ -2,13 +2,47 @@ import requests
 from fastapi import APIRouter, HTTPException
 from sourcecode.crmAuthentication import authenticate_crm
 from datetime import datetime, timedelta
+import boto3,json
+
+
 
 router = APIRouter()
 
-CRM_API_URL = "https://afi-group.crm11.dynamics.com/"
-MOENGAGE_API_URL = "https://api-02.moengage.com/v1/transition/6978DCU8W19J0XQOKS7NEE1C_DEBUG"
-moe_token="Njk3OERDVThXMTlKMFhRT0tTN05FRTFDX0RFQlVHOjhiWk9TcEs3UTloRTl4cnV3ck5ZR0JodQ=="
-token_moe=f'Basic {moe_token}'
+# Initialize Boto3 client for Secrets Manager
+secrets_client = boto3.client('secretsmanager')
+
+def get_secret(secret_name: str):
+    """Retrieve secrets from AWS Secrets Manager."""
+    try:
+        response = secrets_client.get_secret_value(SecretId=secret_name)
+        if 'SecretString' in response:
+            return json.loads(response['SecretString'])
+        elif 'SecretBinary' in response:
+            return json.loads(response['SecretBinary'])
+        else:
+            raise ValueError("Secret format is not recognized")
+    except Exception as e:
+        print(f"Error fetching secret: {e}")
+        return None  # Return None for error handling downstream
+
+# Fetch secrets from AWS Secrets Manager
+secrets = get_secret("afi/crm/test")
+
+if secrets:
+    CRM_API_URL = secrets.get("CRM_API_URL", "default_value")
+    CRM_TOKEN_URL = secrets.get("CRM_TOKEN_URL", "default_value")
+    CRM_CLIENT_ID = secrets.get("CRM_CLIENT_ID", "default_value")
+    CRM_CLIENT_SECRET = secrets.get("CRM_CLIENT_SECRET", "default_value")
+    MOENGAGE_API_URL = secrets.get("MOENGAGE_API_URL", "default_value")
+    moe_token = secrets.get("moe_token", "default_value")
+else:
+    print("Failed to load secrets.")
+    CRM_API_URL = CRM_TOKEN_URL = CRM_CLIENT_ID = CRM_CLIENT_SECRET = MOENGAGE_API_URL = moe_token = "default_value"
+
+token_moe = f'Basic {moe_token}'
+
+# Define global token
+global_token = None
 
 
 

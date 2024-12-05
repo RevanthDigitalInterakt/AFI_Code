@@ -1,35 +1,49 @@
 import requests
-import os
-from fastapi import APIRouter, HTTPException ,Query 
-from sourcecode.crmAuthentication import authenticate_crm  
-from dotenv import load_dotenv
-import httpx
+from fastapi import APIRouter, HTTPException,Query
+from sourcecode.crmAuthentication import authenticate_crm
 from datetime import datetime, timedelta
+import boto3
+import json
 
-# Create the FastAPI router instance
 router = APIRouter()
 
-# Load environment variables from the .env file
-load_dotenv()
+# Initialize the AWS Secrets Manager client
+secrets_client = boto3.client("secretsmanager")
 
-# Fetch necessary environment variables from .env
-CRM_API_URL = "https://afi-group.crm11.dynamics.com/"  # Hardcoded for now
-CRM_TOKEN_URL="https://login.microsoftonline.com/11abf71b-55aa-4f1e-8a9d-4a801bdbee28/oauth2/token"
-# CRM_API_URL="https://afi-group.crm11.dynamics.com/api/data/v9.0"
-MOENGAGE_API_URL = "https://api-02.moengage.com/v1/transition/6978DCU8W19J0XQOKS7NEE1C_DEBUG"
+def get_secret(secret_name: str):
+    """Fetch secrets from AWS Secrets Manager."""
+    try:
+        response = secrets_client.get_secret_value(SecretId=secret_name)
+        if "SecretString" in response:
+            return json.loads(response["SecretString"])
+        elif "SecretBinary" in response:
+            return json.loads(response["SecretBinary"])
+    except Exception as e:
+        print(f"Error fetching secret: {e}")
+        raise HTTPException(status_code=404, detail="Secrets not found")
 
-CRM_CLIENT_ID = "111ed0aa-ce80-4ed6-a4da-d1d1bba1aeac"
-CRM_CLIENT_SECRET = "lT28Q~oySx.eCcPGKGn0FVlg1TeBUdDYz1ec~bnb"
-CRM_RESOURCE = "https://afi-group.crm11.dynamics.com"
-# Debugging prints to check if environment variables are loaded correctly
-print(f"CRM_API_URL: {CRM_API_URL}")
+# Load secrets
+secrets = get_secret("afi/crm/test")
 
-moe_token="Njk3OERDVThXMTlKMFhRT0tTN05FRTFDX0RFQlVHOjhiWk9TcEs3UTloRTl4cnV3ck5ZR0JodQ=="
-token_moe=f'Basic {moe_token}'
+if secrets:
+    CRM_API_URL = secrets.get("CRM_API_URL", "")
+    CRM_TOKEN_URL = secrets.get("CRM_TOKEN_URL", "")
+    CRM_CLIENT_ID = secrets.get("CRM_CLIENT_ID", "")
+    CRM_CLIENT_SECRET = secrets.get("CRM_CLIENT_SECRET", "")
+    MOENGAGE_API_URL = secrets.get("MOENGAGE_API_URL", "")
+    moe_token = secrets.get("moe_token", "")
+else:
+    raise HTTPException(status_code=500, detail="Failed to load secrets")
+
+# Authorization token for MoEngage
+token_moe = f"Basic {moe_token}"
+
 
 global_token=None
 
-# Define the fetch_leads function
+
+
+
 @router.get("/fetch-leads")
 async def fetch_leads():
 
