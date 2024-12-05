@@ -19,7 +19,6 @@ def get_secret(secret_name: str):
         elif "SecretBinary" in response:
             return json.loads(response["SecretBinary"])
     except Exception as e:
-        print(f"Error fetching secret: {e}")
         raise HTTPException(status_code=404, detail="Secrets not found")
 
 # Load secrets
