@@ -74,8 +74,8 @@ async def fetch_contacts():
             }
 
         query="emailaddress1,_accountid_value,_parentcustomerid_value,telephone1,mobilephone,jobtitle,firstname,address1_city,lastname,address1_line1,address1_line2,address1_line3,address1_postalcode,donotemail,donotphone,new_afiupliftemail,new_underbridgevanmountemail,new_rapidemail,new_rentalsspecialoffers,new_resaleemail,new_trackemail,new_truckemail,new_utnemail,new_hoistsemail,data8_tpsstatus,new_lastmewpscall,new_lastmewpscallwith,new_lastemailed,new_lastemailedby,new_lastcalled,new_lastcalledby,new_registerforupliftonline,createdon,preferredcontactmethodcode"       
-        ten_days_ago = (datetime.utcnow() - timedelta(days=10)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
-        contacts_url = f"{CRM_API_URL}/api/data/v9.0/contacts?$filter=modifiedon ge {ten_days_ago}&$top=20&$select={query}&$expand=parentcustomerid_account($select=accountnumber),parentcustomerid_account($select=name)"
+        period = (datetime.utcnow() - timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+        contacts_url = f"{CRM_API_URL}/api/data/v9.0/contacts?$filter=modifiedon ge {period}&$select={query}&$expand=parentcustomerid_account($select=accountnumber),parentcustomerid_account($select=name)"
         all_contacts = []
         print("just eneterd contacts")
         while contacts_url:

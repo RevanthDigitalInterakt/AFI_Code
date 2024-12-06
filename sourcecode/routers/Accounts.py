@@ -73,8 +73,8 @@ async def fetch_accounts():
 
         # Fetch accounts modified in the last 10 days
         query="new_afiupliftemail,new_underbridgevanmountemail,new_rapidemail,new_rentalsspecialoffers,new_resaleemail,new_trackemail,new_truckemail,new_utnemail,new_hoistsemail,address1_city,sic,new_registration_no,_new_primaryhirecontact_value,new_lastinvoicedate,new_lasttrainingdate,new_groupaccountmanager,new_rentalam,donotphone,donotemail,new_afiupliftemail,new_underbridgevanmountemail,_new_primarytrainingcontact_value,address1_line1,address1_line2,address1_line3,creditlimit,new_twoyearsagorevenue,data8_tpsstatus,new_creditposition,new_lastyearrevenue,statuscode,address1_postalcode,new_accountopened,name,_new_primaryhirecontact_value,accountnumber,telephone1,emailaddress1,createdon,modifiedon"
-        ten_days_ago = (datetime.utcnow() - timedelta(days=10)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
-        accounts_url = f"{CRM_API_URL}/api/data/v9.0/accounts?$filter=modifiedon ge {ten_days_ago}&$top=2&$select={query}&$expand=new_PrimaryHireContact($select=emailaddress1),new_PrimaryTrainingContact($select=emailaddress1)"
+        period = (datetime.utcnow() - timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+        accounts_url = f"{CRM_API_URL}/api/data/v9.0/accounts?$filter=modifiedon ge {period}&$select={query}&$expand=new_PrimaryHireContact($select=emailaddress1),new_PrimaryTrainingContact($select=emailaddress1)"
         all_accounts = []
 
         while accounts_url:
