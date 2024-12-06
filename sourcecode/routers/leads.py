@@ -3,12 +3,14 @@ from fastapi import APIRouter, HTTPException,Query
 from sourcecode.crmAuthentication import authenticate_crm
 from datetime import datetime, timedelta
 import boto3
-import json
+import json,httpx
 
 router = APIRouter()
 
 # Initialize the AWS Secrets Manager client
 secrets_client = boto3.client("secretsmanager")
+
+S3_BUCKET_NAME = "apierrorlog"
 
 def get_secret(secret_name: str):
     """Fetch secrets from AWS Secrets Manager."""
@@ -19,6 +21,8 @@ def get_secret(secret_name: str):
         elif "SecretBinary" in response:
             return json.loads(response["SecretBinary"])
     except Exception as e:
+        error_message=f"Error fetching Secrets from AWS:{str(e)}"
+        log_error(S3_BUCKET_NAME, error_message)
         raise HTTPException(status_code=404, detail="Secrets not found")
 
 # Load secrets
@@ -40,6 +44,19 @@ token_moe = f"Basic {moe_token}"
 
 global_token=None
 
+def log_error(bucketname:str,error_log:str,key_prefix:str ="errorlogs/"):
+    
+    try:
+        log_time=f"{key_prefix}{datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')}_error.log"
+        
+        
+        s3 = boto3.client('s3')
+        s3.put_object(Body=error_log, Bucket=bucketname, Key=log_time)
+
+        print(f"error logged to S3://{bucketname}/{log_time}")
+    
+    except Exception as e:
+        raise HTTPException(f"failed to log in s3 bucket.S3:{str(e)}")
 
 
 
@@ -72,7 +89,7 @@ async def fetch_leads():
         print(f"Formatted time: {formatted_time}")
 
         # Set the API endpoint to fetch leads from Dynamics 365 CRM # top 5 is set up here for dev
-        leads_url = f"{CRM_API_URL}/api/data/v9.0/leads?$filter=createdon ge {formatted_time}&$top=10&$select=lastname,new_afileadscore,_parentcontactid_value,_parentaccountid_value,companyname,mobilephone,telephone1,emailaddress1,new_leadtype,leadsourcecode,new_utm_campaign,new_utm_campaignname,new_utm_content,new_utm_source,new_utm_medium,new_utm_term,new_utm_keyword,createdon,_ownerid_value,statuscode,subject&$expand=parentcontactid($select=emailaddress1),parentaccountid($select=accountnumber,)"
+        leads_url = f"{CRM_API_URL}/api/data/v9.0/leads?$filter=createdon ge {formatted_time}&$top=1&$select=lastname,new_afileadscore,_parentcontactid_value,_parentaccountid_value,companyname,mobilephone,telephone1,emailaddress1,new_leadtype,leadsourcecode,new_utm_campaign,new_utm_campaignname,new_utm_content,new_utm_source,new_utm_medium,new_utm_term,new_utm_keyword,createdon,_ownerid_value,statuscode,subject&$expand=parentcontactid($select=emailaddress1),parentaccountid($select=accountnumber,)"
 
         # Initialize an empty list to store leads
         all_leads = []
@@ -85,23 +102,23 @@ async def fetch_leads():
                 data = response.json()
                 all_leads.extend(data.get("value", []))  # Add the leads to the list
 
-                # Check if there are more leads to fetch
                 leads_url = data.get("@odata.nextLink")
                 
-                # Debugging output for pagination
+          
                 if leads_url:
                     print(f"Fetching more leads from {leads_url}")
             else:
-                # Log the response content for debugging
-                print(f"Failed to fetch leads: {response.status_code} - {response.text}")
+           
+                error_message = f"Failed to fetch leads: {response.status_code} - {response.text}"
+                log_error(S3_BUCKET_NAME, error_message)
                 raise HTTPException(status_code=response.status_code, detail="Failed to fetch leads from CRM.")
         
         # Return the aggregated leads
         return {"leads": all_leads}
     
     except Exception as e:
-        # Log any error that occurs
-        print(f"Error during fetch-leads: {str(e)}")
+        error_message = f"Error during fetch-leads: {str(e)}"
+        log_error(S3_BUCKET_NAME, error_message)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -230,9 +247,12 @@ async def sync_leads():
         # Send leads to MoEngage
         await send_to_moengage(leads)
 
+
         return {"status": "Leads synchronized successfully"}
 
     except Exception as e:
+        error_message = f"Error during sync-leads: {str(e)}"
+        log_error(S3_BUCKET_NAME, error_message)
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
     
 
@@ -280,7 +300,6 @@ async def fetch_metadata(attribute: str = Query("new_leadtype", description="Log
         raise HTTPException(status_code=500, detail=f"An error occurred while fetching metadata: {str(e)}")
 
 
-@router.get("/fetch-statuscode-metadata")
 async def fetch_statuscode_metadata(attribute: str = Query("statuscode", description="Logical name of the attribute to fetch metadata for")):
    
 
@@ -329,7 +348,6 @@ async def fetch_statuscode_metadata(attribute: str = Query("statuscode", descrip
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred while fetching statuscode metadata: {str(e)}")
 
-@router.get("/fetch-leadsourcecode-metadata")
 async def fetch_leadsourcecode_metadata(attribute: str = Query("leadsourcecode", description="Logical name of the attribute to fetch metadata for")):
    
 

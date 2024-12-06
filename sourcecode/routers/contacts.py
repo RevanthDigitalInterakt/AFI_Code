@@ -3,12 +3,23 @@ from fastapi import APIRouter, HTTPException
 from sourcecode.crmAuthentication import authenticate_crm
 from datetime import datetime, timedelta
 import boto3
-import json
+import json,httpx
 
 router = APIRouter()
 
 # Initialize the AWS Secrets Manager client
 secrets_client = boto3.client("secretsmanager")
+S3_BUCKET_NAME = "apierrorlog"
+
+
+def log_error(bucketname: str, error_log: str, key_prefix: str = "errorlogs/"):
+    try:
+        log_time = f"{key_prefix}{datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')}_error.log"
+        s3 = boto3.client('s3')
+        s3.put_object(Body=error_log, Bucket=bucketname, Key=log_time)
+        print(f"Error logged to S3://{bucketname}/{log_time}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to log in S3 bucket. S3: {str(e)}")
 
 def get_secret(secret_name: str):
     """Fetch secrets from AWS Secrets Manager."""
@@ -33,10 +44,18 @@ if secrets:
     MOENGAGE_API_URL = secrets.get("MOENGAGE_API_URL", "")
     moe_token = secrets.get("moe_token", "")
 else:
+    error_message=f"Check Scerets Manager Values"
+    log_error(S3_BUCKET_NAME,error_message)
     raise HTTPException(status_code=500, detail="Failed to load secrets")
+
+
+
+
+
 
 # Authorization token for MoEngage
 token_moe = f"Basic {moe_token}"
+
 
 
 
@@ -56,7 +75,7 @@ async def fetch_contacts():
 
         query="emailaddress1,_accountid_value,_parentcustomerid_value,telephone1,mobilephone,jobtitle,firstname,address1_city,lastname,address1_line1,address1_line2,address1_line3,address1_postalcode,donotemail,donotphone,new_afiupliftemail,new_underbridgevanmountemail,new_rapidemail,new_rentalsspecialoffers,new_resaleemail,new_trackemail,new_truckemail,new_utnemail,new_hoistsemail,data8_tpsstatus,new_lastmewpscall,new_lastmewpscallwith,new_lastemailed,new_lastemailedby,new_lastcalled,new_lastcalledby,new_registerforupliftonline,createdon,preferredcontactmethodcode"       
         ten_days_ago = (datetime.utcnow() - timedelta(days=10)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
-        contacts_url = f"{CRM_API_URL}/api/data/v9.0/contacts?$filter=modifiedon ge {ten_days_ago}&$top=2&$select={query}"
+        contacts_url = f"{CRM_API_URL}/api/data/v9.0/contacts?$filter=modifiedon ge {ten_days_ago}&$top=20&$select={query}&$expand=parentcustomerid_account($select=accountnumber),parentcustomerid_account($select=name)"
         all_contacts = []
         print("just eneterd contacts")
         while contacts_url:
@@ -72,6 +91,8 @@ async def fetch_contacts():
         return {"contacts": all_contacts}
 
     except Exception as e:
+        error_message = f"Failed to fetch leads: {response.status_code} - {response.text}"
+        log_error(S3_BUCKET_NAME, error_message)
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 
