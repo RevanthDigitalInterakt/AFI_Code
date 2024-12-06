@@ -20,6 +20,17 @@ def log_error(bucketname: str, error_log: str, key_prefix: str = "errorlogs/"):
         print(f"Error logged to S3://{bucketname}/{log_time}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to log in S3 bucket. S3: {str(e)}")
+    
+def log_processedRecords(bucketname:str,log_records:str,key_prefix='processedRecords'):
+    try:
+        log_timestamp=f"{key_prefix}{datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')}_log.json"
+        s3 = boto3.client('s3')
+        s3.put_object(Body=log_records, Bucket=S3_BUCKET_NAME, Key=log_timestamp)
+
+        print("records pushed to aws s3 bucket {bucketname}/{log_timestamp}")
+                      
+    except Exception as e:
+        raise HTTPException(status_code=500,details="Records count failed to log.")
 
 def get_secret(secret_name: str):
     """Fetch secrets from AWS Secrets Manager."""
@@ -74,8 +85,8 @@ async def fetch_contacts():
             }
 
         query="emailaddress1,_accountid_value,_parentcustomerid_value,telephone1,mobilephone,jobtitle,firstname,address1_city,lastname,address1_line1,address1_line2,address1_line3,address1_postalcode,donotemail,donotphone,new_afiupliftemail,new_underbridgevanmountemail,new_rapidemail,new_rentalsspecialoffers,new_resaleemail,new_trackemail,new_truckemail,new_utnemail,new_hoistsemail,data8_tpsstatus,new_lastmewpscall,new_lastmewpscallwith,new_lastemailed,new_lastemailedby,new_lastcalled,new_lastcalledby,new_registerforupliftonline,createdon,preferredcontactmethodcode"       
-        ten_days_ago = (datetime.utcnow() - timedelta(days=10)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
-        contacts_url = f"{CRM_API_URL}/api/data/v9.0/contacts?$filter=modifiedon ge {ten_days_ago}&$top=20&$select={query}&$expand=parentcustomerid_account($select=accountnumber),parentcustomerid_account($select=name)"
+        period = (datetime.utcnow() - timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+        contacts_url = f"{CRM_API_URL}/api/data/v9.0/contacts?$filter=modifiedon ge {period}&$select={query}&$expand=parentcustomerid_account($select=accountnumber),parentcustomerid_account($select=name)"
         all_contacts = []
         print("just eneterd contacts")
         while contacts_url:
@@ -98,11 +109,10 @@ async def fetch_contacts():
 
 def map_contact_to_moengage(contact):
    
-
-    print("fetching Account number for contacts")
-    contact_query="new_contacttype,emailaddress1,_parentcustomerid_value,telephone1,mobilephone&$expand=parentcustomerid_account($select=accountnumber)"
-    Account_reponse=f"{CRM_API_URL}/api/data/v9.0/contacts?$select={contact_query}"
-    print(Account_reponse)
+    parent_contact=contact.get("parentcustomerid_account")
+    accountid_value = contact.get("parentcustomerid_account", {}).get("accountnumber", "No Account Number") if parent_contact  else None
+    parentcustomerid_value = contact.get("parentcustomerid_account", {}).get("name", "No Account Name") if parent_contact  else None
+    
 
     attributes= {
         # "u_n": contact.get("fullname"),
@@ -112,8 +122,8 @@ def map_contact_to_moengage(contact):
         "Created On": contact.get("createdon"),
         "Modified On": contact.get("modifiedon"),
         "new_contacttype": contact.get("new_contacttype"),
-        # "_accountid_value": contact.get("_accountid_value"),
-        # "_parentcustomerid_value": contact.get("_parentcustomerid_value"),
+        "_accountid_value": accountid_value,
+        "_parentcustomerid_value": parentcustomerid_value,
         "jobtitle": contact.get("jobtitle"),
         "u_fn": contact.get("firstname"),
         "u_ln": contact.get("lastname"),
@@ -172,6 +182,8 @@ def map_contact_to_moengage(contact):
 @router.get("/sync")
 async def sync_contacts():
     """Fetch contacts from CRM and send them to MoEngage."""
+    success_count=0
+    fail_count=0
     try:
         contacts_response = await fetch_contacts()
         contacts = contacts_response.get("contacts", [])
@@ -191,8 +203,17 @@ async def sync_contacts():
             response = requests.post(MOENGAGE_API_URL, json=payload, headers=headers)
             if response.status_code == 200:
                 print(f"Contact sent successfully for {contact['emailaddress1']} ")
+                success_count+=1
             else:
                 print(f"Failed to send contact {contact['emailaddress1']}: {response.text}")
+                fail_count+=1
+
+        log_message = json.dumps({
+        "timestamp": datetime.utcnow().isoformat(),
+        "success_count": success_count,
+        "fail_count": fail_count,
+        "total_accounts": len(contacts)
+    })
 
         return {"status": "Contacts synchronized successfully"}
     

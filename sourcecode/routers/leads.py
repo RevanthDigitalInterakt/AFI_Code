@@ -58,6 +58,17 @@ def log_error(bucketname:str,error_log:str,key_prefix:str ="errorlogs/"):
     except Exception as e:
         raise HTTPException(f"failed to log in s3 bucket.S3:{str(e)}")
 
+def log_processedRecords(bucketname:str,log_records:str,key_prefix='processedRecords'):
+    try:
+        log_timestamp=f"{key_prefix}{datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')}_log.json"
+        s3 = boto3.client('s3')
+        s3.put_object(Body=log_records, Bucket=S3_BUCKET_NAME, Key=log_timestamp)
+
+        print("records pushed to aws s3 bucket {bucketname}/{log_timestamp}")
+                      
+    except Exception as e:
+        raise HTTPException(status_code=500,details="Records count failed to log.")
+    
 
 
 @router.get("/fetch-leads")
@@ -81,15 +92,15 @@ async def fetch_leads():
         }
 
         # Get the current time and subtract one hour to get the time range
-        one_hour_ago = (datetime.utcnow() - timedelta(days=10))
+        one_hour_ago = (datetime.utcnow() - timedelta(hours=1))
 
         # Format the DateTimeOffset correctly for CRM API (including UTC timezone)
-        formatted_time = one_hour_ago.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'  # Exclude extra microseconds and add 'Z' for UTC
+        period = one_hour_ago.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'  # Exclude extra microseconds and add 'Z' for UTC
 
-        print(f"Formatted time: {formatted_time}")
+        print(f"Formatted time: {period}")
 
         # Set the API endpoint to fetch leads from Dynamics 365 CRM # top 5 is set up here for dev
-        leads_url = f"{CRM_API_URL}/api/data/v9.0/leads?$filter=createdon ge {formatted_time}&$top=1&$select=lastname,new_afileadscore,_parentcontactid_value,_parentaccountid_value,companyname,mobilephone,telephone1,emailaddress1,new_leadtype,leadsourcecode,new_utm_campaign,new_utm_campaignname,new_utm_content,new_utm_source,new_utm_medium,new_utm_term,new_utm_keyword,createdon,_ownerid_value,statuscode,subject&$expand=parentcontactid($select=emailaddress1),parentaccountid($select=accountnumber,)"
+        leads_url = f"{CRM_API_URL}/api/data/v9.0/leads?$filter=createdon ge {period}&$select=lastname,new_afileadscore,_parentcontactid_value,_parentaccountid_value,companyname,mobilephone,telephone1,emailaddress1,new_leadtype,leadsourcecode,new_utm_campaign,new_utm_campaignname,new_utm_content,new_utm_source,new_utm_medium,new_utm_term,new_utm_keyword,createdon,_ownerid_value,statuscode,subject&$expand=parentcontactid($select=emailaddress1),parentaccountid($select=accountnumber)"
 
         # Initialize an empty list to store leads
         all_leads = []
@@ -219,7 +230,8 @@ async def map_lead_to_moengage(lead):
 
 
 async def send_to_moengage(leads):
-
+    success_count=0
+    fail_count=0
     
     headers = {
         'Authorization':token_moe ,
@@ -228,14 +240,26 @@ async def send_to_moengage(leads):
     }
 
     for lead in leads:
-        print("check here\n")
-        print(lead)
         payload = await map_lead_to_moengage(lead)
         response = requests.post(MOENGAGE_API_URL, json=payload, headers=headers)
         if response.status_code == 200:
+            success_count+=1
             print(f"Lead {lead['emailaddress1']} sent successfully")
         else:
+            failed_count+=1
             print(f"Failed to send lead {lead['emailaddress1']}: {response.text}")
+
+    log_message = json.dumps({
+        "timestamp": datetime.utcnow().isoformat(),
+        "success_count": success_count,
+        "fail_count": fail_count,
+        "total_accounts": len(leads)
+    })
+
+    
+    log_processedRecords(S3_BUCKET_NAME,log_message,key_prefix="processedRecords")
+
+
 
 # Endpoint to fetch and send leads to MoEngage
 @router.get("/sync-leads")
