@@ -98,11 +98,10 @@ async def fetch_contacts():
 
 def map_contact_to_moengage(contact):
    
-
-    print("fetching Account number for contacts")
-    contact_query="new_contacttype,emailaddress1,_parentcustomerid_value,telephone1,mobilephone&$expand=parentcustomerid_account($select=accountnumber)"
-    Account_reponse=f"{CRM_API_URL}/api/data/v9.0/contacts?$select={contact_query}"
-    print(Account_reponse)
+    parent_contact=contact.get("parentcustomerid_account")
+    accountid_value = contact.get("parentcustomerid_account", {}).get("accountnumber", "No Account Number") if parent_contact  else None
+    parentcustomerid_value = contact.get("parentcustomerid_account", {}).get("name", "No Account Name") if parent_contact  else None
+    
 
     attributes= {
         # "u_n": contact.get("fullname"),
@@ -112,8 +111,8 @@ def map_contact_to_moengage(contact):
         "Created On": contact.get("createdon"),
         "Modified On": contact.get("modifiedon"),
         "new_contacttype": contact.get("new_contacttype"),
-        # "_accountid_value": contact.get("_accountid_value"),
-        # "_parentcustomerid_value": contact.get("_parentcustomerid_value"),
+        "_accountid_value": accountid_value,
+        "_parentcustomerid_value": parentcustomerid_value,
         "jobtitle": contact.get("jobtitle"),
         "u_fn": contact.get("firstname"),
         "u_ln": contact.get("lastname"),
