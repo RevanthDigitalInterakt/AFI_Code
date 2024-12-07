@@ -58,13 +58,16 @@ def log_error(bucketname:str,error_log:str,key_prefix:str ="errorlogs/"):
     except Exception as e:
         raise HTTPException(f"failed to log in s3 bucket.S3:{str(e)}")
 
-def log_processedRecords(bucketname:str,log_records:str,key_prefix='processedRecords'):
+def log_processedRecords(bucketname:str,log_records:str,key_prefix:str='processedRecords/'):
+    print(bucketname)
+    print(log_records)
     try:
         log_timestamp=f"{key_prefix}{datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')}_log.json"
         s3 = boto3.client('s3')
-        s3.put_object(Body=log_records, Bucket=S3_BUCKET_NAME, Key=log_timestamp)
+        s3.put_object(Body=log_records, Bucket=bucketname, Key=log_timestamp)
+        # s3.upload_file()
 
-        print("records pushed to aws s3 bucket {bucketname}/{log_timestamp}")
+        print(f"records pushed to aws s3 bucket://{bucketname}/{log_timestamp}")
                       
     except Exception as e:
         raise HTTPException(status_code=500,details="Records count failed to log.")
@@ -134,130 +137,197 @@ async def fetch_leads():
 
 
 async def map_lead_to_moengage(lead):
+
+    print(lead)
     
 
-    new_leadtype_metadata_response = await fetch_metadata("new_leadtype")
-    new_leadtype_options = {
-        option["value"]: option["label"]
-        for option in new_leadtype_metadata_response["options"]
-    }
+    try:
 
-    statuscode_metadata_response = await fetch_statuscode_metadata("statuscode")
-    statuscode_options = {
-        option["value"]: option["label"]
-        for option in statuscode_metadata_response["options"]
-    }
+        new_leadtype_metadata_response = await fetch_metadata("new_leadtype")
+        new_leadtype_options = {
+            option["value"]: option["label"]
+            for option in new_leadtype_metadata_response["options"]
+        }
 
-    leadsourcecode_metadata_response = await fetch_leadsourcecode_metadata("leadsourcecode")
-    leadsourcecode_options = {
-        option["value"]: option["label"]
-        for option in leadsourcecode_metadata_response["options"]
-    }
+        statuscode_metadata_response = await fetch_statuscode_metadata("statuscode")
+        statuscode_options = {
+            option["value"]: option["label"]
+            for option in statuscode_metadata_response["options"]
+        }
 
-    # Extract the fields from the lead and map them to the corresponding labels using metadata
-    lead_type = new_leadtype_options.get(lead.get("new_leadtype"), "Unknown Lead Type")
-    lead_source = leadsourcecode_options.get(lead.get("leadsourcecode"), "Unknown Lead Source")
-    lead_status = statuscode_options.get(lead.get("statuscode"), "Unknown Status")
-    print("calling parent account and contact id")
-    parent_contact=lead.get("parentcontactid")
-    parent_account=lead.get("parentaccountid")
-    parent_contact_email = lead.get("parentcontactid", {}).get("emailaddress1", "No Contact Email") if parent_contact  else None
-    parent_account_number = lead.get("parentaccountid", {}).get("accountnumber", "No Account Number") if parent_account  else None
+        leadsourcecode_metadata_response = await fetch_leadsourcecode_metadata("leadsourcecode")
+        leadsourcecode_options = {
+            option["value"]: option["label"]
+            for option in leadsourcecode_metadata_response["options"]
+        }
 
-    print(parent_account_number,"\tseparater\t",parent_contact_email)
+        # Extract the fields from the lead and map them to the corresponding labels using metadata
+        lead_type = new_leadtype_options.get(lead.get("new_leadtype"), "Unknown Lead Type")
+        lead_source = leadsourcecode_options.get(lead.get("leadsourcecode"), "Unknown Lead Source")
+        lead_status = statuscode_options.get(lead.get("statuscode"), "Unknown Status")
+        print("calling parent account and contact id")
+        parent_contact=lead.get("parentcontactid")
+        parent_account=lead.get("parentaccountid")
+        parent_contact_email = lead.get("parentcontactid", {}).get("emailaddress1", "No Contact Email") if parent_contact  else None
+        parent_account_number = lead.get("parentaccountid", {}).get("accountnumber", "No Account Number") if parent_account  else None
 
-    print("printing other attributes")
-    print(lead_type)
-    print(lead_status)
-    print(lead_status)
+        print(parent_account_number,"\tseparater\t",parent_contact_email)
 
-    print("owner id")
-    email_data_response = await fetch_email_from_lead()
-    internal_email_address = email_data_response["internal_email_address"]
-    print("check email here\n")
-    print(internal_email_address)
+        print("printing other attributes")
+        print(lead_type)
+        print(lead_status)
+        print(lead_status)
 
-    payload = {
-        "leadid": lead.get("leadid"),
-        "u_em": lead.get("emailaddress1"),  
-        "u_mb": lead.get("mobilephone"),  
-        "telephone1": lead.get("telephone1"), 
-        "Company Name": lead.get("companyname" ),  # Company name
-        "Lead Type": lead_type,  # Use the mapped value
-        "Lead Source Code": lead_source,  # Use the mapped value
-        "Status Code": lead_status,  # Use the mapped value
-        "new_utm_campaign": lead.get("new_utm_campaign" ),  # UTM Campaign
-        "new_utm_campaignname": lead.get("new_utm_campaignname" ),  # UTM Campaign Name
-        "new_utm_content": lead.get("new_utm_content" ),  # UTM Content
-        "new_utm_source": lead.get("new_utm_source" ),  # UTM Source
-        "new_utm_medium": lead.get("new_utm_medium" ),  # UTM Medium
-        "new_utm_term": lead.get("new_utm_term" ),  # UTM Term
-        "new_utm_keyword": lead.get("new_utm_keyword" ),  # UTM Keyword
-        "Created On": lead.get("createdon" ),  # Created date
-        # "Owner": lead.get("_ownerid_value"),  # Owner ID
-        "Owner": internal_email_address,
-        "Topic": lead.get("subject"),  
-        "Parent Contact Email": parent_contact_email,  # Parent contact email
-        "Parent Account Number": parent_account_number  # Parent account number
-        # "Parent Contact for lead": lead.get("_parentcontactid_value"),  
-        # "Parent Account for lead": lead.get("_parentaccountid_value"),  
+        print("owner id")
+        email_data_response = await fetch_email_from_lead()
+        internal_email_address = email_data_response["internal_email_address"]
+        print("check email here\n")
+        print(internal_email_address)
 
-    }
+        payload = {
+            "leadid": lead.get("leadid"),
+            "u_em": lead.get("emailaddress1"),  
+            "u_mb": lead.get("mobilephone"),  
+            "telephone1": lead.get("telephone1"), 
+            "Company Name": lead.get("companyname" ),  # Company name
+            "Lead Type": lead_type,  # Use the mapped value
+            "Lead Source Code": lead_source,  # Use the mapped value
+            "Status Code": lead_status,  # Use the mapped value
+            "new_utm_campaign": lead.get("new_utm_campaign" ),  # UTM Campaign
+            "new_utm_campaignname": lead.get("new_utm_campaignname" ),  # UTM Campaign Name
+            "new_utm_content": lead.get("new_utm_content" ),  # UTM Content
+            "new_utm_source": lead.get("new_utm_source" ),  # UTM Source
+            "new_utm_medium": lead.get("new_utm_medium" ),  # UTM Medium
+            "new_utm_term": lead.get("new_utm_term" ),  # UTM Term
+            "new_utm_keyword": lead.get("new_utm_keyword" ),  # UTM Keyword
+            "Created On": lead.get("createdon" ),  # Created date
+            # "Owner": lead.get("_ownerid_value"),  # Owner ID
+            "Owner": internal_email_address,
+            "Topic": lead.get("subject"),  
+            "Parent Contact Email": parent_contact_email,  # Parent contact email
+            "Parent Account Number": parent_account_number  # Parent account number
+            # "Parent Contact for lead": lead.get("_parentcontactid_value"),  
+            # "Parent Account for lead": lead.get("_parentaccountid_value"),  
 
-    print("caling meta data for other attributes")
+        }
+
+        print("caling meta data for other attributes")
+        
+        customer_id=payload.get("u_em")
+        final_payload={
+            "type": "transition",
+            "elements": [
+                {
+                    "type": "customer",
+                    "customer_id": customer_id,
+                    "attributes": payload,
+                },
+                {
+                    "type": "event",
+                    "customer_id": customer_id,
+                    "device_id": "96bd03b6-defc-4203-83d3-dc1c73080232",  # Replace with actual device ID if available
+                    "actions": []  # Empty actions array as per your example
+                },
+            ],
+        }
+        print(final_payload)
+        
+        return final_payload
     
-    customer_id=payload.get("u_em")
-    final_payload={
-        "type": "transition",
-        "elements": [
-            {
-                "type": "customer",
-                "customer_id": customer_id,
-                "attributes": payload,
-            },
-            {
-                "type": "event",
-                "customer_id": customer_id,
-                "device_id": "96bd03b6-defc-4203-83d3-dc1c73080232",  # Replace with actual device ID if available
-                "actions": []  # Empty actions array as per your example
-            },
-        ],
-    }
-    print(final_payload)
-    
-    return final_payload
-
+    except Exception as e:
+        raise HTTPException(status_code=500,details="failed in send function")
 
 
 async def send_to_moengage(leads):
-    success_count=0
-    fail_count=0
-    
+    success_count = 0
+    fail_count = 0
+    print(len(leads))
+
     headers = {
-        'Authorization':token_moe ,
+        'Authorization': token_moe,
         'Content-Type': 'application/json',
-        'MOE-APPKEY':'6978DCU8W19J0XQOKS7NEE1C_DEBUG'
+        'MOE-APPKEY': '6978DCU8W19J0XQOKS7NEE1C_DEBUG'
     }
 
-    for lead in leads:
-        payload = await map_lead_to_moengage(lead)
-        response = requests.post(MOENGAGE_API_URL, json=payload, headers=headers)
-        if response.status_code == 200:
-            success_count+=1
-            print(f"Lead {lead['emailaddress1']} sent successfully")
-        else:
-            failed_count+=1
-            print(f"Failed to send lead {lead['emailaddress1']}: {response.text}")
+    success_records = []
+    failed_records = []
+
+    try:
+        for lead in leads:
+            payload = await map_lead_to_moengage(lead)
+            response = requests.post(MOENGAGE_API_URL, json=payload, headers=headers)
+
+            if response.status_code == 200:
+                success_count += 1
+                record = {
+                    "email": lead['emailaddress1'],
+                    "status": response.text
+                }
+                success_records.append(record)
+                print(f"Lead {lead['emailaddress1']} sent successfully")
+            else:
+                fail_count += 1
+                record = {
+                    "email": lead['emailaddress1'],
+                    "error": response.text
+                }
+                failed_records.append(record)
+                print(f"Failed to send lead {lead['emailaddress1']}: {response.text}")
+
+    except Exception as e:
+        print(str(e))
 
     log_message = json.dumps({
         "timestamp": datetime.utcnow().isoformat(),
         "success_count": success_count,
         "fail_count": fail_count,
-        "total_accounts": len(leads)
-    })
+        "total_accounts": len(leads),
+        "success_records": success_records,
+        "failed_records": failed_records
+    }, indent=4)  # Optional: indent makes JSON more readable
+
+    log_processedRecords(S3_BUCKET_NAME, log_message)
+
+# async def send_to_moengage(leads):
+#     success_count=0
+#     fail_count=0
+#     print(len(leads))
+#     headers = {
+#         'Authorization':token_moe ,
+#         'Content-Type': 'application/json',
+#         'MOE-APPKEY':'6978DCU8W19J0XQOKS7NEE1C_DEBUG'
+#     }
+#     record_details={}
+#     try:
+        
+#         for lead in leads:
+#             payload = await map_lead_to_moengage(lead)
+#             response = requests.post(MOENGAGE_API_URL, json=payload, headers=headers)
+#             if response.status_code == 200:
+#                 record_details={
+#                     "email":lead['emailaddress1'],
+#                     "status":"sucess"
+#                 }
+#                 success_count+=1
+#                 print(f"Lead {lead['emailaddress1']} sent successfully")
+#             else:
+#                 record_details={
+#                     "email":lead['emailaddress1'],
+#                     "status":"sucess"
+#                 }                
+#                 failed_count+=1
+#                 print(f"Failed to send lead {lead['emailaddress1']}: {response.text}")
+#     except Exception as e:
+#         print(str(e))
+#     log_message = json.dumps({
+#         "timestamp": datetime.utcnow().isoformat(),
+#         "success_count": success_count,
+#         "fail_count": fail_count,
+#         "total_accounts": len(leads)
+#     })
 
     
-    log_processedRecords(S3_BUCKET_NAME,log_message,key_prefix="processedRecords")
+#     log_processedRecords(S3_BUCKET_NAME,log_message,key_prefix="processedRecords")
 
 
 

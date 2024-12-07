@@ -11,7 +11,7 @@ router = APIRouter()
 secrets_client = boto3.client("secretsmanager")
 S3_BUCKET_NAME = "apierrorlog"
 
-
+#log the errors
 def log_error(bucketname: str, error_log: str, key_prefix: str = "errorlogs/"):
     try:
         log_time = f"{key_prefix}{datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')}_error.log"
@@ -20,17 +20,28 @@ def log_error(bucketname: str, error_log: str, key_prefix: str = "errorlogs/"):
         print(f"Error logged to S3://{bucketname}/{log_time}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to log in S3 bucket. S3: {str(e)}")
-    
-def log_processedRecords(bucketname:str,log_records:str,key_prefix='processedRecords'):
+
+
+#log the records
+def log_processedRecords(bucketname:str,log_records:str,key_prefix:str='processedRecords/'):
+    print(bucketname)
+    print(log_records)
     try:
         log_timestamp=f"{key_prefix}{datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')}_log.json"
         s3 = boto3.client('s3')
-        s3.put_object(Body=log_records, Bucket=S3_BUCKET_NAME, Key=log_timestamp)
+        s3.put_object(Body=log_records, Bucket=bucketname, Key=log_timestamp)
+        # s3.upload_file()
 
-        print("records pushed to aws s3 bucket {bucketname}/{log_timestamp}")
+        print(f"records pushed to aws s3 bucket://{bucketname}/{log_timestamp}")
                       
     except Exception as e:
         raise HTTPException(status_code=500,details="Records count failed to log.")
+    
+
+    
+
+
+# function for Client secrets
 
 def get_secret(secret_name: str):
     """Fetch secrets from AWS Secrets Manager."""
@@ -85,7 +96,9 @@ async def fetch_contacts():
             }
 
         query="emailaddress1,_accountid_value,_parentcustomerid_value,telephone1,mobilephone,jobtitle,firstname,address1_city,lastname,address1_line1,address1_line2,address1_line3,address1_postalcode,donotemail,donotphone,new_afiupliftemail,new_underbridgevanmountemail,new_rapidemail,new_rentalsspecialoffers,new_resaleemail,new_trackemail,new_truckemail,new_utnemail,new_hoistsemail,data8_tpsstatus,new_lastmewpscall,new_lastmewpscallwith,new_lastemailed,new_lastemailedby,new_lastcalled,new_lastcalledby,new_registerforupliftonline,createdon,preferredcontactmethodcode"       
-        period = (datetime.utcnow() - timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+        
+        period = (datetime.utcnow() - timedelta(hours=2)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+
         contacts_url = f"{CRM_API_URL}/api/data/v9.0/contacts?$filter=modifiedon ge {period}&$select={query}&$expand=parentcustomerid_account($select=accountnumber),parentcustomerid_account($select=name)"
         all_contacts = []
         print("just eneterd contacts")
@@ -184,6 +197,9 @@ async def sync_contacts():
     """Fetch contacts from CRM and send them to MoEngage."""
     success_count=0
     fail_count=0
+
+    success_records=[]
+    failed_records=[]
     try:
         contacts_response = await fetch_contacts()
         contacts = contacts_response.get("contacts", [])
@@ -204,16 +220,31 @@ async def sync_contacts():
             if response.status_code == 200:
                 print(f"Contact sent successfully for {contact['emailaddress1']} ")
                 success_count+=1
+
+                record = {
+                    "email": contact['emailaddress1'],
+                    "error": response.text
+                }
+                success_records.append(record)
             else:
                 print(f"Failed to send contact {contact['emailaddress1']}: {response.text}")
                 fail_count+=1
+                record = {
+                    "email": contact['emailaddress1'],
+                    "error": response.text
+                }
+                success_records.append(record)
 
         log_message = json.dumps({
-        "timestamp": datetime.utcnow().isoformat(),
-        "success_count": success_count,
-        "fail_count": fail_count,
-        "total_accounts": len(contacts)
-    })
+            "timestamp": datetime.utcnow().isoformat(),
+            "success_count": success_count,
+            "fail_count": fail_count,
+            "total_accounts": len(contacts),
+            "success_records": success_records,
+            "failed_records": failed_records
+        }, indent=4)  # Optional: indent makes JSON more readable
+
+        log_processedRecords(S3_BUCKET_NAME, log_message)
 
         return {"status": "Contacts synchronized successfully"}
     
