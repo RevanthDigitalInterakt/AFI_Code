@@ -61,6 +61,7 @@ def log_error(bucketname:str,error_log:str,key_prefix:str ="errorlogs/"):
 def log_processedRecords(bucketname:str,log_records:str,key_prefix:str='processedRecords/'):
     print(bucketname)
     print(log_records)
+    print("git hub")
     try:
         log_timestamp=f"{key_prefix}{datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')}_log.json"
         s3 = boto3.client('s3')
