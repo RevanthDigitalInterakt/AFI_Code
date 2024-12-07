@@ -202,13 +202,11 @@ async def map_lead_to_moengage(lead):
             "new_utm_term": lead.get("new_utm_term" ),  # UTM Term
             "new_utm_keyword": lead.get("new_utm_keyword" ),  # UTM Keyword
             "Created On": lead.get("createdon" ),  # Created date
-            # "Owner": lead.get("_ownerid_value"),  # Owner ID
             "Owner": internal_email_address,
             "Topic": lead.get("subject"),  
+            # "Modified On": account.get("modifiedon"),
             "Parent Contact Email": parent_contact_email,  # Parent contact email
-            "Parent Account Number": parent_account_number  # Parent account number
-            # "Parent Contact for lead": lead.get("_parentcontactid_value"),  
-            # "Parent Account for lead": lead.get("_parentaccountid_value"),  
+            "Parent Account Number": parent_account_number  # Parent account number  
 
         }
 
