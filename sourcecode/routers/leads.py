@@ -40,9 +40,11 @@ else:
 
 # Authorization token for MoEngage
 token_moe = f"Basic {moe_token}"
-
-
 global_token=None
+
+
+
+
 
 def log_error(bucketname:str,error_log:str,key_prefix:str ="errorlogs/"):
     
@@ -57,22 +59,32 @@ def log_error(bucketname:str,error_log:str,key_prefix:str ="errorlogs/"):
     
     except Exception as e:
         raise HTTPException(f"failed to log in s3 bucket.S3:{str(e)}")
+    
+
+
+
+
 
 def log_processedRecords(bucketname:str,log_records:str,key_prefix:str='processedRecords/'):
     print(bucketname)
     print(log_records)
-    print("git hub")
+
     try:
         log_timestamp=f"{key_prefix}{datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')}_log.json"
         s3 = boto3.client('s3')
         s3.put_object(Body=log_records, Bucket=bucketname, Key=log_timestamp)
-        # s3.upload_file()
+       
 
         print(f"records pushed to aws s3 bucket://{bucketname}/{log_timestamp}")
                       
     except Exception as e:
+        error_message=str(e)
+        log_error(bucketname,error_message)
         raise HTTPException(status_code=500,details="Records count failed to log.")
     
+
+
+
 
 
 @router.get("/fetch-leads")
@@ -224,17 +236,15 @@ async def map_lead_to_moengage(lead):
                 {
                     "type": "event",
                     "customer_id": customer_id,
-                    "device_id": "96bd03b6-defc-4203-83d3-dc1c73080232",  # Replace with actual device ID if available
                     "actions": []  # Empty actions array as per your example
                 },
             ],
         }
         print(final_payload)
-        
         return final_payload
     
     except Exception as e:
-        raise HTTPException(status_code=500,details="failed in send function")
+        raise HTTPException(status_code=500,details="failed in map function")
 
 
 async def send_to_moengage(leads):
@@ -264,14 +274,22 @@ async def send_to_moengage(leads):
                 }
                 success_records.append(record)
                 print(f"Lead {lead['emailaddress1']} sent successfully")
+
             else:
                 fail_count += 1
                 record = {
                     "email": lead['emailaddress1'],
                     "error": response.text
                 }
+
+
                 failed_records.append(record)
+
+                # send the falied payload to sqs
+                send_to_SQS(payload)
+
                 print(f"Failed to send lead {lead['emailaddress1']}: {response.text}")
+                
 
     except Exception as e:
         print(str(e))
@@ -287,46 +305,22 @@ async def send_to_moengage(leads):
 
     log_processedRecords(S3_BUCKET_NAME, log_message)
 
-# async def send_to_moengage(leads):
-#     success_count=0
-#     fail_count=0
-#     print(len(leads))
-#     headers = {
-#         'Authorization':token_moe ,
-#         'Content-Type': 'application/json',
-#         'MOE-APPKEY':'6978DCU8W19J0XQOKS7NEE1C_DEBUG'
-#     }
-#     record_details={}
-#     try:
-        
-#         for lead in leads:
-#             payload = await map_lead_to_moengage(lead)
-#             response = requests.post(MOENGAGE_API_URL, json=payload, headers=headers)
-#             if response.status_code == 200:
-#                 record_details={
-#                     "email":lead['emailaddress1'],
-#                     "status":"sucess"
-#                 }
-#                 success_count+=1
-#                 print(f"Lead {lead['emailaddress1']} sent successfully")
-#             else:
-#                 record_details={
-#                     "email":lead['emailaddress1'],
-#                     "status":"sucess"
-#                 }                
-#                 failed_count+=1
-#                 print(f"Failed to send lead {lead['emailaddress1']}: {response.text}")
-#     except Exception as e:
-#         print(str(e))
-#     log_message = json.dumps({
-#         "timestamp": datetime.utcnow().isoformat(),
-#         "success_count": success_count,
-#         "fail_count": fail_count,
-#         "total_accounts": len(leads)
-#     })
 
-    
-#     log_processedRecords(S3_BUCKET_NAME,log_message,key_prefix="processedRecords")
+async def send_to_SQS(failed_payload):
+    # Create a new SQS client
+    sqs = boto3.client('sqs')
+    queue_url = "https://sqs.<region>.amazonaws.com/<account-id>/<queue-name>"  # Replace with your SQS URL
+
+    try:
+        response = sqs.send_message(
+            QueueUrl=queue_url,
+            MessageBody=json.dumps(failed_payload)
+        )
+        print(f"Failed payload sent to SQS: {response['MessageId']}")
+    except Exception as e:
+        error_message = f"Error sending payload to SQS: {str(e)}"
+        log_error(S3_BUCKET_NAME, error_message)
+        raise HTTPException(status_code=500, detail=error_message)
 
 
 
@@ -341,7 +335,7 @@ async def sync_leads():
         await send_to_moengage(leads)
 
 
-        return {"status": "Leads synchronized successfully"}
+        return {"status": "Leads synchronized successfully to moengage"}
 
     except Exception as e:
         error_message = f"Error during sync-leads: {str(e)}"
@@ -548,3 +542,51 @@ async def fetch_email_from_lead():
     except requests.RequestException as e:
         print("Error:", str(e))  # Debugging line
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/retry-leads")
+async def retry_failed_payloads_from_sqs():
+    sqs = boto3.client('sqs')
+    queue_url = "https://sqs.<region>.amazonaws.com/<account-id>/<queue-name>"  # Replace with your SQS URL
+
+    try:
+        while True:  
+            response = sqs.receive_message(
+                QueueUrl=queue_url,
+                MaxNumberOfMessages=10,  # Fetch up to 10 messages at a time
+                WaitTimeSeconds=5  # Long-polling
+            )
+
+            messages = response.get('Messages', [])
+            if not messages:
+                print("No messages in the queue.")
+                break
+
+            for message in messages:
+                payload = json.loads(message['Body'])
+                try:
+                    # Retry sending the payload to MoEngage
+                    headers = {
+                        'Authorization': token_moe,
+                        'Content-Type': 'application/json',
+                        'MOE-APPKEY': '6978DCU8W19J0XQOKS7NEE1C_DEBUG'
+                    }
+
+                    response = requests.post(MOENGAGE_API_URL, json=payload, headers=headers)
+                    if response.status_code == 200:
+                        print(f"Successfully retried payload: {payload}")
+                        
+                        # Delete the message from SQS
+                        sqs.delete_message(
+                            QueueUrl=queue_url,
+                            ReceiptHandle=message['ReceiptHandle']
+                        )
+                    else:
+                        print(f"Retry failed for payload: {payload}, Response: {response.text}")
+                except Exception as retry_error:
+                    print(f"Error retrying payload: {retry_error}")
+
+    except Exception as e:
+        error_message = f"Error processing SQS messages: {str(e)}"
+        log_error(S3_BUCKET_NAME, error_message)
+        raise HTTPException(status_code=500, detail=error_message)

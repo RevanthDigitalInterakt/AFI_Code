@@ -35,7 +35,9 @@ def log_processedRecords(bucketname:str,log_records:str,key_prefix:str='processe
         print(f"records pushed to aws s3 bucket://{bucketname}/{log_timestamp}")
                       
     except Exception as e:
-        raise HTTPException(status_code=500,details="Records count failed to log.")
+        error_message = str(e)
+        log_error(S3_BUCKET_NAME, error_message)
+        raise HTTPException(status_code=500,details="Processed Records failed to log.")
     
 
     
@@ -52,7 +54,8 @@ def get_secret(secret_name: str):
         elif "SecretBinary" in response:
             return json.loads(response["SecretBinary"])
     except Exception as e:
-        print(f"Error fetching secret: {e}")
+        error_message=str(e)
+        log_error(S3_BUCKET_NAME,error_message)
         raise HTTPException(status_code=404, detail="Secrets not found")
 
 # Load secrets
@@ -101,7 +104,7 @@ async def fetch_contacts():
 
         contacts_url = f"{CRM_API_URL}/api/data/v9.0/contacts?$filter=modifiedon ge {period}&$select={query}&$expand=parentcustomerid_account($select=accountnumber),parentcustomerid_account($select=name)"
         all_contacts = []
-        print("just eneterd contacts")
+        print("just entered contacts")
         while contacts_url:
             response = requests.get(contacts_url, headers=headers)
             if response.status_code == 200:
@@ -109,13 +112,14 @@ async def fetch_contacts():
                 all_contacts.extend(data.get("value", []))
                 contacts_url = data.get("@odata.nextLink")
             else:
+                error_message = f"Error while fetching-contacts: {str(e)}"
+                log_error(S3_BUCKET_NAME, error_message)
                 raise HTTPException(status_code=response.status_code, detail="Failed to fetch contacts from CRM.")
-        print("prinitng all contacts")
-        print(all_contacts)
+       
         return {"contacts": all_contacts}
 
     except Exception as e:
-        error_message = f"Failed to fetch leads: {response.status_code} - {response.text}"
+        error_message = f"Failed to fetch-contacts: {response.status_code} - {response.text}"
         log_error(S3_BUCKET_NAME, error_message)
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
@@ -195,60 +199,67 @@ def map_contact_to_moengage(contact):
 @router.get("/sync")
 async def sync_contacts():
     """Fetch contacts from CRM and send them to MoEngage."""
+    
+    try:
+        contacts_response = await fetch_contacts()
+        contacts = contacts_response.get("contacts", [])
+      
+      
+        await send_to_moengage(contacts)
+        
+        return {"status": "Contacts synchronized successfully to moengage"}
+       
+    except Exception as e:
+        error_message = f"Error during sync-contacts: {str(e)}"
+        log_error(S3_BUCKET_NAME, error_message)
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+async def send_to_moengage(contacts):
     success_count=0
     fail_count=0
 
     success_records=[]
     failed_records=[]
-    try:
-        contacts_response = await fetch_contacts()
-        contacts = contacts_response.get("contacts", [])
-        print("printing token")
-        print(moe_token)
-        headers = {
-            'Authorization': token_moe,
-            'Content-Type': 'application/json',
-            'MOE-APPKEY':'6978DCU8W19J0XQOKS7NEE1C_DEBUG'
-        }
+    print("printing token")
+    print(moe_token)
+    headers = {
+        'Authorization': token_moe,
+        'Content-Type': 'application/json',
+        'MOE-APPKEY':'6978DCU8W19J0XQOKS7NEE1C_DEBUG'
+    }
 
-        # Send contacts to MoEngage
-        for contact in contacts:
-            payload = map_contact_to_moengage(contact)
-            print("printing payload")
-            print(payload)
-            response = requests.post(MOENGAGE_API_URL, json=payload, headers=headers)
-            if response.status_code == 200:
-                print(f"Contact sent successfully for {contact['emailaddress1']} ")
-                success_count+=1
+    # Send contacts to MoEngage
+    for contact in contacts:
+        payload = map_contact_to_moengage(contact)
+        print("printing payload")
+        print(payload)
+        response = requests.post(MOENGAGE_API_URL, json=payload, headers=headers)
+        if response.status_code == 200:
+            print(f"Contact sent successfully for {contact['emailaddress1']} ")
+            success_count+=1
 
-                record = {
-                    "email": contact['emailaddress1'],
-                    "error": response.text
-                }
-                success_records.append(record)
-            else:
-                print(f"Failed to send contact {contact['emailaddress1']}: {response.text}")
-                fail_count+=1
-                record = {
-                    "email": contact['emailaddress1'],
-                    "error": response.text
-                }
-                success_records.append(record)
+            record = {
+                "email": contact['emailaddress1'],
+                "error": response.text
+            }
+            success_records.append(record)
+        else:
+            print(f"Failed to send contact {contact['emailaddress1']}: {response.text}")
+            fail_count+=1
+            record = {
+                "email": contact['emailaddress1'],
+                "error": response.text
+            }
+            failed_records.append(record)
 
-        log_message = json.dumps({
-            "timestamp": datetime.utcnow().isoformat(),
-            "success_count": success_count,
-            "fail_count": fail_count,
-            "total_accounts": len(contacts),
-            "success_records": success_records,
-            "failed_records": failed_records
-        }, indent=4)  # Optional: indent makes JSON more readable
+    log_message = json.dumps({
+        "timestamp": datetime.utcnow().isoformat(),
+        "success_count": success_count,
+        "fail_count": fail_count,
+        "total_accounts": len(contacts),
+        "success_records": success_records,
+        "failed_records": failed_records
+    }, indent=4)  # Optional: indent makes JSON more readable
 
-        log_processedRecords(S3_BUCKET_NAME, log_message)
-
-        return {"status": "Contacts synchronized successfully"}
-    
-
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    log_processedRecords(S3_BUCKET_NAME, log_message)

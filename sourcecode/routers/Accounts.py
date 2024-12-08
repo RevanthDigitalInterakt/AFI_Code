@@ -57,18 +57,19 @@ def log_error(bucketname: str, error_log: str, key_prefix: str = "errorlogs/"):
         raise HTTPException(status_code=500, detail=f"Failed to log in S3 bucket. S3: {str(e)}")
 
 def log_processedRecords(bucketname:str,log_records:str,key_prefix:str='processedRecords/'):
-    print(bucketname)
-    print(log_records)
+  
     try:
         log_timestamp=f"{key_prefix}{datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')}_log.json"
         s3 = boto3.client('s3')
         s3.put_object(Body=log_records, Bucket=bucketname, Key=log_timestamp)
-        # s3.upload_file()
+       
 
         print(f"records pushed to aws s3 bucket://{bucketname}/{log_timestamp}")
                       
     except Exception as e:
-        raise HTTPException(status_code=500,details="Records count failed to log.")
+        error_message = str(e)
+        log_error(S3_BUCKET_NAME, error_message)
+        raise HTTPException(status_code=500,details="Processed Records Failed to log.")
     
 
 
@@ -199,24 +200,42 @@ def map_account_to_moengage(account):
 @router.get("/sync")
 async def sync_accounts():
     """Fetch accounts from CRM and send them to MoEngage."""
-    success_count=0
-    fail_count=0
-
-    success_records=[]
-    failed_records=[]
+    
     
     try:
         accounts_response = await fetch_accounts()
         accounts = accounts_response.get("accounts", [])
 
-        headers = {
-            'Authorization': token_moe,
-            'Content-Type': 'application/json',
-            'MOE-APPKEY':'6978DCU8W19J0XQOKS7NEE1C_DEBUG'
-        }
+        await send_to_moengage(accounts)
 
         
+        return {"status": "Accounts synchronized successfully to moengage"}
 
+
+    except Exception as e:
+        error_message = f"Error during sync-Accounts: {str(e)}"
+        log_error(S3_BUCKET_NAME, error_message)
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+
+
+async def send_to_moengage(accounts):
+
+    success_count=0
+    fail_count=0
+
+    success_records=[]
+    failed_records=[]
+
+    headers = {
+        'Authorization': token_moe,
+        'Content-Type': 'application/json',
+        'MOE-APPKEY':'6978DCU8W19J0XQOKS7NEE1C_DEBUG'
+    }
+
+    try:      
+      
         # Send accounts to MoEngage
         for account in accounts:
             payload = map_account_to_moengage(account)
@@ -240,8 +259,7 @@ async def sync_accounts():
         log_processedRecords(S3_BUCKET_NAME, log_message)
 
         return {"status": "Accounts synchronized successfully"}
-
     except Exception as e:
-        error_message = f"Error during sync-Accounts: {str(e)}"
+        error_message = f"Error while sending accounts : {str(e)}"
         log_error(S3_BUCKET_NAME, error_message)
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+        raise HTTPException(status_code=500,details=f"{str(e)}")
