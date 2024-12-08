@@ -263,3 +263,93 @@ async def send_to_moengage(accounts):
         error_message = f"Error while sending accounts : {str(e)}"
         log_error(S3_BUCKET_NAME, error_message)
         raise HTTPException(status_code=500,details=f"{str(e)}")
+@router.post("/SQS")  # Fixed route path
+async def send_to_SQS(failed_payload: dict):  # Explicitly type `failed_payload` as a dictionary
+    # Create a new SQS client
+    sqs = boto3.client('sqs', region_name="eu-north-1")  # Specify the region explicitly if required
+    queue_url = "https://sqs.eu-north-1.amazonaws.com/062314917923/TestRevanth"  # Replace with your SQS URL
+#     payload= {'type': 'transition', 'elements': [{'type': 'customer', 'customer_id': 'derek@derekmcaleese.com', 'attributes': {'u_em': 'derek@derekmcaleese.com', 'u_mb': None, 
+# 'telephone1': '01233 638996', 'Created On': '2019-07-06T06:53:46Z', 'Modified On': None, 'new_contacttype': None, '_accountid_value': None, '_parentcustomerid_value': 'DESTRA ENGINEERING LIMITED', 'jobtitle': 'Managing Director', 'u_fn': 'Derek', 'u_ln': 'Rawlings', 'address1_city': 'ASHFORD', 'address1_line1': 'Unit 5 St Georges Bus Ctr', 'address1_line2': 'Brunswick Rd Cobbs Wood', 'address1_line3': None, 'address1_postalcode': 'TN23 1EL', 'donotemail': False, 'donotphone': False, 'new_afiupliftemail': True, 'new_underbridgevanmountemail': None, 'new_rapidemail': True, 'new_rentalsspecialoffers': None, 'new_resaleemail': True, 'new_trackemail': None, 'new_truckemail': None, 'new_utnemail': True, 'new_hoistsemail': None, 'data8_tpsstatus': None, 'new_lastmewpscall': None, 'new_lastmewpscallwith': None, 
+# 'new_lastemailed': None, 'new_lastemailedby': None, 'new_lastcalled': None, 'new_lastcalledby': None, 'new_registerforupliftonline': None, 'preferredcontactmethodcode': 1}}, {'type': 'event', 'customer_id': 'derek@derekmcaleese.com', 'actions': []}]}
+#     failed_payload=payload
+    try:
+        # Serialize and send the message to the SQS queue
+        response = sqs.send_message(
+            QueueUrl=queue_url,
+            MessageBody=json.dumps(failed_payload)  # Convert payload to JSON string
+        )
+        print(f"Failed payload sent to SQS: {response['MessageId']}")
+        return {"message": "Payload successfully sent to SQS", "message_id": response['MessageId']}
+    except Exception as e:
+        # Log the error
+        error_message = f"Error sending payload to SQS: {str(e)}"
+        log_error(S3_BUCKET_NAME, error_message)
+        
+        # Raise HTTPException for FastAPI error response
+        raise HTTPException(status_code=500, detail=error_message)
+
+
+
+@router.get("/retry-leads")
+async def retry_failed_payloads_from_sqs():
+    sqs = boto3.client('sqs')
+    queue_url = "https://sqs.eu-north-1.amazonaws.com/062314917923/TestRevanth"
+
+    try:
+        while True:
+            # Receive messages from SQS
+            response = sqs.receive_message(
+                QueueUrl=queue_url,
+                MaxNumberOfMessages=10,
+                WaitTimeSeconds=10
+            )
+
+            # If no messages are found, break the loop
+            if 'Messages' not in response:
+                print("No more messages to process.")
+                break
+
+            for message in response['Messages']:
+                try:
+                    # Inspect the raw body before parsing
+                    raw_body = message['Body']
+                    print(f"Raw message body: {raw_body}")
+
+                    # Attempt to parse the message body
+                    try:
+                        payload = json.loads(raw_body)
+                    except json.JSONDecodeError as e:
+                        print(f"Invalid JSON in message body: {raw_body}, Error: {str(e)}")
+                        # Optionally, log the error and skip this message
+                        continue
+
+                    # Retry sending the payload to MoEngage
+                    headers = {
+                        'Authorization': token_moe,
+                        'Content-Type': 'application/json',
+                        'MOE-APPKEY': '6978DCU8W19J0XQOKS7NEE1C_DEBUG'
+                    }
+                    response = requests.post(MOENGAGE_API_URL, json=payload, headers=headers)
+
+                    if response.status_code == 200:
+                        print(f"Successfully retried payload: {payload}")
+                        return {"your finished"}
+                    else:
+                        print(f"Failed to retry payload: {payload}, Error: {response.text}")
+                        raise Exception(response.text)
+
+                    # Delete the message from the queue upon success
+                    sqs.delete_message(
+                        QueueUrl=queue_url,
+                        ReceiptHandle=message['ReceiptHandle']
+                    )
+                    print("Message deleted from SQS.")
+
+                except Exception as e:
+                    print(f"Error processing message: {str(e)}")
+                    # Optionally, log the error and leave the message in SQS for another retry
+
+    except Exception as e:
+        error_message = f"Error while retrying failed payloads from SQS: {str(e)}"
+        log_error(S3_BUCKET_NAME, error_message)
+        raise HTTPException(status_code=500, detail=error_message)
