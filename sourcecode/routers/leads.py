@@ -306,21 +306,21 @@ async def send_to_moengage(leads):
     log_processedRecords(S3_BUCKET_NAME, log_message)
 
 
-async def send_to_SQS(failed_payload):
-    # Create a new SQS client
-    sqs = boto3.client('sqs')
-    queue_url = "https://sqs.<region>.amazonaws.com/<account-id>/<queue-name>"  # Replace with your SQS URL
+# async def send_to_SQS(failed_payload):
+#     # Create a new SQS client
+#     sqs = boto3.client('sqs')
+#     queue_url = "https://sqs.<region>.amazonaws.com/<account-id>/<queue-name>"  # Replace with your SQS URL
 
-    try:
-        response = sqs.send_message(
-            QueueUrl=queue_url,
-            MessageBody=json.dumps(failed_payload)
-        )
-        print(f"Failed payload sent to SQS: {response['MessageId']}")
-    except Exception as e:
-        error_message = f"Error sending payload to SQS: {str(e)}"
-        log_error(S3_BUCKET_NAME, error_message)
-        raise HTTPException(status_code=500, detail=error_message)
+#     try:
+#         response = sqs.send_message(
+#             QueueUrl=queue_url,
+#             MessageBody=json.dumps(failed_payload)
+#         )
+#         print(f"Failed payload sent to SQS: {response['MessageId']}")
+#     except Exception as e:
+#         error_message = f"Error sending payload to SQS: {str(e)}"
+#         log_error(S3_BUCKET_NAME, error_message)
+#         raise HTTPException(status_code=500, detail=error_message)
 
 
 
@@ -544,49 +544,49 @@ async def fetch_email_from_lead():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/retry-leads")
-async def retry_failed_payloads_from_sqs():
-    sqs = boto3.client('sqs')
-    queue_url = "https://sqs.<region>.amazonaws.com/<account-id>/<queue-name>"  # Replace with your SQS URL
+# @router.get("/retry-leads")
+# async def retry_failed_payloads_from_sqs():
+#     sqs = boto3.client('sqs')
+#     queue_url = "https://sqs.<region>.amazonaws.com/<account-id>/<queue-name>"  # Replace with your SQS URL
 
-    try:
-        while True:  
-            response = sqs.receive_message(
-                QueueUrl=queue_url,
-                MaxNumberOfMessages=10,  # Fetch up to 10 messages at a time
-                WaitTimeSeconds=5  # Long-polling
-            )
+#     try:
+#         while True:  
+#             response = sqs.receive_message(
+#                 QueueUrl=queue_url,
+#                 MaxNumberOfMessages=10,  # Fetch up to 10 messages at a time
+#                 WaitTimeSeconds=5  # Long-polling
+#             )
 
-            messages = response.get('Messages', [])
-            if not messages:
-                print("No messages in the queue.")
-                break
+#             messages = response.get('Messages', [])
+#             if not messages:
+#                 print("No messages in the queue.")
+#                 break
 
-            for message in messages:
-                payload = json.loads(message['Body'])
-                try:
-                    # Retry sending the payload to MoEngage
-                    headers = {
-                        'Authorization': token_moe,
-                        'Content-Type': 'application/json',
-                        'MOE-APPKEY': '6978DCU8W19J0XQOKS7NEE1C_DEBUG'
-                    }
+#             for message in messages:
+#                 payload = json.loads(message['Body'])
+#                 try:
+#                     # Retry sending the payload to MoEngage
+#                     headers = {
+#                         'Authorization': token_moe,
+#                         'Content-Type': 'application/json',
+#                         'MOE-APPKEY': '6978DCU8W19J0XQOKS7NEE1C_DEBUG'
+#                     }
 
-                    response = requests.post(MOENGAGE_API_URL, json=payload, headers=headers)
-                    if response.status_code == 200:
-                        print(f"Successfully retried payload: {payload}")
+#                     response = requests.post(MOENGAGE_API_URL, json=payload, headers=headers)
+#                     if response.status_code == 200:
+#                         print(f"Successfully retried payload: {payload}")
                         
-                        # Delete the message from SQS
-                        sqs.delete_message(
-                            QueueUrl=queue_url,
-                            ReceiptHandle=message['ReceiptHandle']
-                        )
-                    else:
-                        print(f"Retry failed for payload: {payload}, Response: {response.text}")
-                except Exception as retry_error:
-                    print(f"Error retrying payload: {retry_error}")
+#                         # Delete the message from SQS
+#                         sqs.delete_message(
+#                             QueueUrl=queue_url,
+#                             ReceiptHandle=message['ReceiptHandle']
+#                         )
+#                     else:
+#                         print(f"Retry failed for payload: {payload}, Response: {response.text}")
+#                 except Exception as retry_error:
+#                     print(f"Error retrying payload: {retry_error}")
 
-    except Exception as e:
-        error_message = f"Error processing SQS messages: {str(e)}"
-        log_error(S3_BUCKET_NAME, error_message)
-        raise HTTPException(status_code=500, detail=error_message)
+#     except Exception as e:
+#         error_message = f"Error processing SQS messages: {str(e)}"
+#         log_error(S3_BUCKET_NAME, error_message)
+#         raise HTTPException(status_code=500, detail=error_message)
