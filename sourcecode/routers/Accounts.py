@@ -92,7 +92,7 @@ async def fetch_accounts():
        
         period = (datetime.utcnow() - timedelta(hours=0.3)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
        
-        accounts_url = f"{CRM_API_URL}/api/data/v9.0/accounts?$filter=modifiedon ge {period}&$select={query}&$expand=new_PrimaryHireContact($select=emailaddress1),new_PrimaryTrainingContact($select=emailaddress1)"
+        accounts_url = f"{CRM_API_URL}/api/data/v9.0/accounts?$filter=(createdon ge {period} or modifiedon ge {period})&$select={query}&$expand=new_PrimaryHireContact($select=emailaddress1),new_PrimaryTrainingContact($select=emailaddress1)"
         all_accounts = []
 
         while accounts_url:

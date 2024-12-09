@@ -84,9 +84,6 @@ def log_processedRecords(bucketname:str,log_records:str,source:str ="leads",key_
     
 
 
-
-
-
 @router.get("/fetch-leads")
 async def fetch_leads():
 
@@ -116,7 +113,7 @@ async def fetch_leads():
         print(f"Formatted time: {period}")
 
         # Set the API endpoint to fetch leads from Dynamics 365 CRM # top 5 is set up here for dev
-        leads_url = f"{CRM_API_URL}/api/data/v9.0/leads?$filter=createdon ge {period}&$select=lastname,new_afileadscore,_parentcontactid_value,_parentaccountid_value,companyname,mobilephone,telephone1,emailaddress1,new_leadtype,leadsourcecode,new_utm_campaign,new_utm_campaignname,new_utm_content,new_utm_source,new_utm_medium,new_utm_term,new_utm_keyword,createdon,_ownerid_value,statuscode,subject&$expand=parentcontactid($select=emailaddress1),parentaccountid($select=accountnumber)"
+        leads_url = f"{CRM_API_URL}/api/data/v9.0/leads?$filter=(createdon ge {period} or modifiedon ge {period})&$select=lastname,new_afileadscore,_parentcontactid_value,_parentaccountid_value,companyname,mobilephone,telephone1,emailaddress1,new_leadtype,leadsourcecode,new_utm_campaign,new_utm_campaignname,new_utm_content,new_utm_source,new_utm_medium,new_utm_term,new_utm_keyword,createdon,_ownerid_value,statuscode,subject&$expand=parentcontactid($select=emailaddress1),parentaccountid($select=accountnumber)"
 
         # Initialize an empty list to store leads
         all_leads = []

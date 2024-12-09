@@ -102,7 +102,7 @@ async def fetch_contacts():
         
         period = (datetime.utcnow() - timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
 
-        contacts_url = f"{CRM_API_URL}/api/data/v9.0/contacts?$filter=modifiedon ge {period}&$select={query}&$expand=parentcustomerid_account($select=accountnumber),parentcustomerid_account($select=name)"
+        contacts_url = f"{CRM_API_URL}/api/data/v9.0/contacts?$filter=(createdon ge {period} or modifiedon ge {period})&$select={query}&$expand=parentcustomerid_account($select=accountnumber),parentcustomerid_account($select=name)"
         all_contacts = []
         print("just entered contacts")
         while contacts_url:
