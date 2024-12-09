@@ -47,19 +47,19 @@ global_token = None
 
 
 
-def log_error(bucketname: str, error_log: str, key_prefix: str = "errorlogs/"):
+def log_error(bucketname: str, error_log: str, source:str ="accounts",key_prefix: str = "errorlogs/"):
     try:
-        log_time = f"{key_prefix}{datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')}_error.log"
+        log_time = f"{key_prefix}{source}_{datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')}_error.log"
         s3 = boto3.client('s3')
         s3.put_object(Body=error_log, Bucket=bucketname, Key=log_time)
         print(f"Error logged to S3://{bucketname}/{log_time}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to log in S3 bucket. S3: {str(e)}")
 
-def log_processedRecords(bucketname:str,log_records:str,key_prefix:str='processedRecords/'):
+def log_processedRecords(bucketname:str,log_records:str,source:str ="accounts",key_prefix:str='processedRecords/'):
   
     try:
-        log_timestamp=f"{key_prefix}{datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')}_log.json"
+        log_timestamp=f"{key_prefix}{source}_{datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')}_log.json"
         s3 = boto3.client('s3')
         s3.put_object(Body=log_records, Bucket=bucketname, Key=log_timestamp)
        
@@ -90,7 +90,7 @@ async def fetch_accounts():
         # Fetch accounts modified in the last 10 days
         query="new_afiupliftemail,new_underbridgevanmountemail,new_rapidemail,new_rentalsspecialoffers,new_resaleemail,new_trackemail,new_truckemail,new_utnemail,new_hoistsemail,address1_city,sic,new_registration_no,_new_primaryhirecontact_value,new_lastinvoicedate,new_lasttrainingdate,new_groupaccountmanager,new_rentalam,donotphone,donotemail,new_afiupliftemail,new_underbridgevanmountemail,_new_primarytrainingcontact_value,address1_line1,address1_line2,address1_line3,creditlimit,new_twoyearsagorevenue,data8_tpsstatus,new_creditposition,new_lastyearrevenue,statuscode,address1_postalcode,new_accountopened,name,_new_primaryhirecontact_value,accountnumber,telephone1,emailaddress1,createdon,modifiedon"
        
-        period = (datetime.utcnow() - timedelta(hours=5)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+        period = (datetime.utcnow() - timedelta(hours=0.3)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
        
         accounts_url = f"{CRM_API_URL}/api/data/v9.0/accounts?$filter=modifiedon ge {period}&$select={query}&$expand=new_PrimaryHireContact($select=emailaddress1),new_PrimaryTrainingContact($select=emailaddress1)"
         all_accounts = []
@@ -242,10 +242,24 @@ async def send_to_moengage(accounts):
             response = requests.post(MOENGAGE_API_URL, json=payload, headers=headers)
             if response.status_code == 200:
                 success_count+=1
-                print(f"Account {account['emailaddress1']} sent successfully")
+                record = {
+                    "email": account['emailaddress1'],
+                    "status": response.text
+                }
+                success_records.append(record)
+                print(success_records)
+                print(f"Lead {account['emailaddress1']} sent successfully")
             else:
                 print(f"Failed to send account {account['emailaddress1']}: {response.text}")
                 fail_count+=1
+                record = {
+                    "email": account['emailaddress1'],
+                    "status": response.text
+                }
+                failed_records.append(record)
+                print(failed_records)
+                print(f"Lead {account['emailaddress1']} sent successfully")
+
 
         log_message = json.dumps({
                 "timestamp": datetime.utcnow().isoformat(),

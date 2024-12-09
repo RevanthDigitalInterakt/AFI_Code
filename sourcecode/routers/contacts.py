@@ -12,7 +12,7 @@ secrets_client = boto3.client("secretsmanager")
 S3_BUCKET_NAME = "apierrorlog"
 
 #log the errors
-def log_error(bucketname: str, error_log: str, key_prefix: str = "errorlogs/"):
+def log_error(bucketname: str, error_log: str, source:str ="contacts",key_prefix: str = "errorlogs/"):
     try:
         log_time = f"{key_prefix}{datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')}_error.log"
         s3 = boto3.client('s3')
@@ -23,11 +23,11 @@ def log_error(bucketname: str, error_log: str, key_prefix: str = "errorlogs/"):
 
 
 #log the records
-def log_processedRecords(bucketname:str,log_records:str,key_prefix:str='processedRecords/'):
+def log_processedRecords(bucketname:str,log_records:str,source:str ="contacts",key_prefix:str='processedRecords/'):
     print(bucketname)
     print(log_records)
     try:
-        log_timestamp=f"{key_prefix}{datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')}_log.json"
+        log_timestamp=f"{key_prefix}{source}_{datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')}_log.json"
         s3 = boto3.client('s3')
         s3.put_object(Body=log_records, Bucket=bucketname, Key=log_timestamp)
         # s3.upload_file()
@@ -100,7 +100,7 @@ async def fetch_contacts():
 
         query="emailaddress1,_accountid_value,_parentcustomerid_value,telephone1,mobilephone,jobtitle,firstname,address1_city,lastname,address1_line1,address1_line2,address1_line3,address1_postalcode,donotemail,donotphone,new_afiupliftemail,new_underbridgevanmountemail,new_rapidemail,new_rentalsspecialoffers,new_resaleemail,new_trackemail,new_truckemail,new_utnemail,new_hoistsemail,data8_tpsstatus,new_lastmewpscall,new_lastmewpscallwith,new_lastemailed,new_lastemailedby,new_lastcalled,new_lastcalledby,new_registerforupliftonline,createdon,preferredcontactmethodcode"       
         
-        period = (datetime.utcnow() - timedelta(hours=2)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+        period = (datetime.utcnow() - timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
 
         contacts_url = f"{CRM_API_URL}/api/data/v9.0/contacts?$filter=modifiedon ge {period}&$select={query}&$expand=parentcustomerid_account($select=accountnumber),parentcustomerid_account($select=name)"
         all_contacts = []
