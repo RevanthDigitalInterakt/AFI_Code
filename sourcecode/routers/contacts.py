@@ -4,6 +4,8 @@ from sourcecode.crmAuthentication import authenticate_crm
 from datetime import datetime, timedelta
 import boto3
 import json,httpx
+import logging
+
 
 router = APIRouter()
 
@@ -11,33 +13,67 @@ router = APIRouter()
 secrets_client = boto3.client("secretsmanager")
 S3_BUCKET_NAME = "apierrorlog"
 
-#log the errors
-def log_error(bucketname: str, error_log: str, source:str ="contacts",key_prefix: str = "errorlogs/"):
+
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+def log_error(bucketname: str, error_log: str, source: str = "contacts", key_prefix: str = "errorlogs/"):
     try:
         log_time = f"{key_prefix}{datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')}_error.log"
         s3 = boto3.client('s3')
+        logging.info(f"Attempting to log error to S3 bucket: {bucketname}, key: {log_time}")
         s3.put_object(Body=error_log, Bucket=bucketname, Key=log_time)
-        print(f"Error logged to S3://{bucketname}/{log_time}")
+        logging.info(f"Error logged to S3://{bucketname}/{log_time}")
     except Exception as e:
+        logging.error(f"Failed to log error in S3 bucket. S3: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to log in S3 bucket. S3: {str(e)}")
 
 
-#log the records
-def log_processedRecords(bucketname:str,log_records:str,source:str ="contacts",key_prefix:str='processedRecords/'):
-    print(bucketname)
-    print(log_records)
+def log_processedRecords(bucketname: str, log_records: str, source: str = "contacts", key_prefix: str = "processedRecords/"):
     try:
-        log_timestamp=f"{key_prefix}{source}_{datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')}_log.json"
+        log_timestamp = f"{key_prefix}{source}_{datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')}_log.json"
         s3 = boto3.client('s3')
+        logging.info(f"Attempting to log processed records to S3 bucket: {bucketname}, key: {log_timestamp}")
         s3.put_object(Body=log_records, Bucket=bucketname, Key=log_timestamp)
-        # s3.upload_file()
-
-        print(f"records pushed to aws s3 bucket://{bucketname}/{log_timestamp}")
-                      
+        logging.info(f"Records logged to S3://{bucketname}/{log_timestamp}")
     except Exception as e:
         error_message = str(e)
+        logging.error(f"Error while logging processed records: {error_message}")
         log_error(S3_BUCKET_NAME, error_message)
-        raise HTTPException(status_code=500,details="Processed Records failed to log.")
+        raise HTTPException(status_code=500, detail="Processed Records failed to log.")
+
+
+#log the errors
+# def log_error(bucketname: str, error_log: str, source:str ="contacts",key_prefix: str = "errorlogs/"):
+#     try:
+#         log_time = f"{key_prefix}{datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')}_error.log"
+#         s3 = boto3.client('s3')
+#         s3.put_object(Body=error_log, Bucket=bucketname, Key=log_time)
+#         print(f"Error logged to S3://{bucketname}/{log_time}")
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"Failed to log in S3 bucket. S3: {str(e)}")
+
+
+# #log the records
+# def log_processedRecords(bucketname:str,log_records:str,source:str ="contacts",key_prefix:str='processedRecords/'):
+#     print(bucketname)
+#     print(log_records)
+#     try:
+#         log_timestamp=f"{key_prefix}{source}_{datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')}_log.json"
+#         s3 = boto3.client('s3')
+#         s3.put_object(Body=log_records, Bucket=bucketname, Key=log_timestamp)
+#         # s3.upload_file()
+
+#         print(f"records pushed to aws s3 bucket://{bucketname}/{log_timestamp}")
+                      
+#     except Exception as e:
+#         error_message = str(e)
+#         log_error(S3_BUCKET_NAME, error_message)
+#         raise HTTPException(status_code=500,details="Processed Records failed to log.")
     
 
     
@@ -201,6 +237,7 @@ async def sync_contacts():
     """Fetch contacts from CRM and send them to MoEngage."""
     
     try:
+        print("enetered sync contacts")
         contacts_response = await fetch_contacts()
         contacts = contacts_response.get("contacts", [])
       

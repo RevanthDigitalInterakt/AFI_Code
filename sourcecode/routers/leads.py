@@ -335,6 +335,7 @@ async def send_to_SQS(failed_payload: dict):  # Explicitly type `failed_payload`
 @router.get("/sync-leads")
 async def sync_leads():
     try:
+        print("entered sync contacts")
         leads_response = await fetch_leads()
         leads = leads_response.get("leads", [])
 

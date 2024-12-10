@@ -204,6 +204,7 @@ async def sync_accounts():
     
     
     try:
+        print("enetered sync accounts")
         accounts_response = await fetch_accounts()
         accounts = accounts_response.get("accounts", [])
 
