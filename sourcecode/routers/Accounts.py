@@ -209,7 +209,7 @@ async def sync_accounts():
     """Fetch accounts from CRM and send them to MoEngage."""
     
     try:
-        print("enetered sync accounts")
+        print("entered sync accounts")
         accounts_response = await fetch_accounts()
         accounts = accounts_response.get("accounts", [])
 
@@ -304,7 +304,7 @@ async def send_to_SQS(failed_payload: dict):  # Explicitly type `failed_payload`
 # 'new_lastemailed': None, 'new_lastemailedby': None, 'new_lastcalled': None, 'new_lastcalledby': None, 'new_registerforupliftonline': None, 'preferredcontactmethodcode': 1}}, {'type': 'event', 'customer_id': 'derek@derekmcaleese.com', 'actions': []}]}
 #     failed_payload=payload
 
-    failed_payload={"invalid":"payload"}
+    # failed_payload={"invalid":"payload"}
 
     try:
         # Serialize and send the message to the SQS queue
