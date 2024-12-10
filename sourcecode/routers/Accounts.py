@@ -319,66 +319,66 @@ async def send_to_SQS(failed_payload: dict):  # Explicitly type `failed_payload`
 
 
 
-@router.get("/retry-accounts")
-async def retry_failed_payloads_from_sqs():
-    sqs = boto3.client('sqs')
-    queue_url = "https://sqs.eu-north-1.amazonaws.com/062314917923/TestRevanth"
+# @router.get("/retry-accounts")
+# async def retry_failed_payloads_from_sqs():
+#     sqs = boto3.client('sqs')
+#     queue_url = "https://sqs.eu-north-1.amazonaws.com/062314917923/TestRevanth"
 
-    try:
-        while True:
-            # Receive messages from SQS
-            response = sqs.receive_message(
-                QueueUrl=queue_url,
-                MaxNumberOfMessages=10,
-                WaitTimeSeconds=10
-            )
+#     try:
+#         while True:
+#             # Receive messages from SQS
+#             response = sqs.receive_message(
+#                 QueueUrl=queue_url,
+#                 MaxNumberOfMessages=10,
+#                 WaitTimeSeconds=10
+#             )
 
-            # If no messages are found, break the loop
-            if 'Messages' not in response:
-                print("No more messages to process.")
-                break
+#             # If no messages are found, break the loop
+#             if 'Messages' not in response:
+#                 print("No more messages to process.")
+#                 break
 
-            for message in response['Messages']:
-                try:
-                    # Inspect the raw body before parsing
-                    raw_body = message['Body']
-                    print(f"Raw message body: {raw_body}")
+#             for message in response['Messages']:
+#                 try:
+#                     # Inspect the raw body before parsing
+#                     raw_body = message['Body']
+#                     print(f"Raw message body: {raw_body}")
 
-                    # Attempt to parse the message body
-                    try:
-                        payload = json.loads(raw_body)
-                    except json.JSONDecodeError as e:
-                        print(f"Invalid JSON in message body: {raw_body}, Error: {str(e)}")
-                        # Optionally, log the error and skip this message
-                        continue
+#                     # Attempt to parse the message body
+#                     try:
+#                         payload = json.loads(raw_body)
+#                     except json.JSONDecodeError as e:
+#                         print(f"Invalid JSON in message body: {raw_body}, Error: {str(e)}")
+#                         # Optionally, log the error and skip this message
+#                         continue
 
-                    # Retry sending the payload to MoEngage
-                    headers = {
-                        'Authorization': token_moe,
-                        'Content-Type': 'application/json',
-                        'MOE-APPKEY': '6978DCU8W19J0XQOKS7NEE1C_DEBUG'
-                    }
-                    response = requests.post(MOENGAGE_API_URL, json=payload, headers=headers)
+#                     # Retry sending the payload to MoEngage
+#                     headers = {
+#                         'Authorization': token_moe,
+#                         'Content-Type': 'application/json',
+#                         'MOE-APPKEY': '6978DCU8W19J0XQOKS7NEE1C_DEBUG'
+#                     }
+#                     response = requests.post(MOENGAGE_API_URL, json=payload, headers=headers)
 
-                    if response.status_code == 200:
-                        print(f"Successfully retried payload: {payload}")
-                        return {"your finished"}
-                    else:
-                        print(f"Failed to retry payload: {payload}, Error: {response.text}")
-                        raise Exception(response.text)
+#                     if response.status_code == 200:
+#                         print(f"Successfully retried payload: {payload}")
+#                         return {"your finished"}
+#                     else:
+#                         print(f"Failed to retry payload: {payload}, Error: {response.text}")
+#                         raise Exception(response.text)
 
-                    # Delete the message from the queue upon success
-                    sqs.delete_message(
-                        QueueUrl=queue_url,
-                        ReceiptHandle=message['ReceiptHandle']
-                    )
-                    print("Message deleted from SQS.")
+#                     # Delete the message from the queue upon success
+#                     sqs.delete_message(
+#                         QueueUrl=queue_url,
+#                         ReceiptHandle=message['ReceiptHandle']
+#                     )
+#                     print("Message deleted from SQS.")
 
-                except Exception as e:
-                    print(f"Error processing message: {str(e)}")
-                    # Optionally, log the error and leave the message in SQS for another retry
+#                 except Exception as e:
+#                     print(f"Error processing message: {str(e)}")
+#                     # Optionally, log the error and leave the message in SQS for another retry
 
-    except Exception as e:
-        error_message = f"Error while retrying failed payloads from SQS: {str(e)}"
-        log_error(S3_BUCKET_NAME, error_message)
-        raise HTTPException(status_code=500, detail=error_message)
+#     except Exception as e:
+#         error_message = f"Error while retrying failed payloads from SQS: {str(e)}"
+#         log_error(S3_BUCKET_NAME, error_message)
+#         raise HTTPException(status_code=500, detail=error_message)

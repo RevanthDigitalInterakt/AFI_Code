@@ -119,6 +119,17 @@ async def total_records_today():
 
     return total_counts
 
+
+
+
+
+
+
+
+
+
+
+
 # Include the routers
 app.include_router(leads.router)
 app.include_router(Accounts.router, prefix="/accounts", tags=["accounts"])

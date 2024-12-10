@@ -552,7 +552,7 @@ async def fetch_email_from_lead():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/retry-leads")
+@router.get("/retry")
 async def retry_failed_payloads_from_sqs():
     sqs = boto3.client('sqs')
     queue_url = "https://sqs.eu-north-1.amazonaws.com/062314917923/TestRevanth"
@@ -615,6 +615,9 @@ async def retry_failed_payloads_from_sqs():
         error_message = f"Error while retrying failed payloads from SQS: {str(e)}"
         log_error(S3_BUCKET_NAME, error_message)
         raise HTTPException(status_code=500, detail=error_message)
+
+
+
 # async def retry_failed_payloads_from_sqs():
 #     sqs = boto3.client('sqs')
 #     queue_url = "https://sqs.eu-north-1.amazonaws.com/062314917923/TestRevanth"  # Replace with your SQS URL
