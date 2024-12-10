@@ -252,6 +252,7 @@ async def send_to_moengage(contacts):
                 "error": response.text
             }
             failed_records.append(record)
+            await send_to_SQS(payload)
 
     log_message = json.dumps({
         "timestamp": datetime.utcnow().isoformat(),
@@ -297,7 +298,7 @@ async def send_to_SQS(failed_payload: dict):  # Explicitly type `failed_payload`
 
 
 
-@router.get("/retry-leads")
+@router.get("/retry-contacts")
 async def retry_failed_payloads_from_sqs():
     sqs = boto3.client('sqs')
     queue_url = "https://sqs.eu-north-1.amazonaws.com/062314917923/TestRevanth"

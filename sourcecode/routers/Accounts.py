@@ -90,7 +90,7 @@ async def fetch_accounts():
         # Fetch accounts modified in the last 10 days
         query="new_afiupliftemail,new_underbridgevanmountemail,new_rapidemail,new_rentalsspecialoffers,new_resaleemail,new_trackemail,new_truckemail,new_utnemail,new_hoistsemail,address1_city,sic,new_registration_no,_new_primaryhirecontact_value,new_lastinvoicedate,new_lasttrainingdate,new_groupaccountmanager,new_rentalam,donotphone,donotemail,new_afiupliftemail,new_underbridgevanmountemail,_new_primarytrainingcontact_value,address1_line1,address1_line2,address1_line3,creditlimit,new_twoyearsagorevenue,data8_tpsstatus,new_creditposition,new_lastyearrevenue,statuscode,address1_postalcode,new_accountopened,name,_new_primaryhirecontact_value,accountnumber,telephone1,emailaddress1,createdon,modifiedon"
        
-        period = (datetime.utcnow() - timedelta(hours=0.3)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+        period = (datetime.utcnow() - timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
        
         accounts_url = f"{CRM_API_URL}/api/data/v9.0/accounts?$filter=(createdon ge {period} or modifiedon ge {period})&$select={query}&$expand=new_PrimaryHireContact($select=emailaddress1),new_PrimaryTrainingContact($select=emailaddress1)"
         all_accounts = []
@@ -190,6 +190,7 @@ def map_account_to_moengage(account):
             },
         ],
     }
+    print(final_payload)
     
     return final_payload
 
@@ -257,6 +258,7 @@ async def send_to_moengage(accounts):
                     "status": response.text
                 }
                 failed_records.append(record)
+                await send_to_SQS(payload)
                 print(failed_records)
                 print(f"Lead {account['emailaddress1']} sent successfully")
 
@@ -277,6 +279,9 @@ async def send_to_moengage(accounts):
         error_message = f"Error while sending accounts : {str(e)}"
         log_error(S3_BUCKET_NAME, error_message)
         raise HTTPException(status_code=500,details=f"{str(e)}")
+    
+
+
 @router.post("/SQS")  # Fixed route path
 async def send_to_SQS(failed_payload: dict):  # Explicitly type `failed_payload` as a dictionary
    
@@ -313,7 +318,7 @@ async def send_to_SQS(failed_payload: dict):  # Explicitly type `failed_payload`
 
 
 
-@router.get("/retry-leads")
+@router.get("/retry-accounts")
 async def retry_failed_payloads_from_sqs():
     sqs = boto3.client('sqs')
     queue_url = "https://sqs.eu-north-1.amazonaws.com/062314917923/TestRevanth"
