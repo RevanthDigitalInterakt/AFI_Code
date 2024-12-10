@@ -161,75 +161,86 @@ async def fetch_contacts():
 
 
 def map_contact_to_moengage(contact):
+
+    try:
    
-    parent_contact=contact.get("parentcustomerid_account")
-    accountid_value = contact.get("parentcustomerid_account", {}).get("accountnumber", "No Account Number") if parent_contact  else None
-    parentcustomerid_value = contact.get("parentcustomerid_account", {}).get("name", "No Account Name") if parent_contact  else None
+        parent_contact=contact.get("parentcustomerid_account")
+        accountid_value = contact.get("parentcustomerid_account", {}).get("accountnumber", "No Account Number") if parent_contact  else None
+        parentcustomerid_value = contact.get("parentcustomerid_account", {}).get("name", "No Account Name") if parent_contact  else None
+        
+
+        attributes= {
+            # "u_n": contact.get("fullname"),
+            "u_em": contact.get("emailaddress1"),
+            "u_mb": contact.get("mobilephone"),
+            "telephone1": contact.get("telephone1"),
+            "Created On": contact.get("createdon"),
+            "Modified On": contact.get("modifiedon"),
+            "new_contacttype": contact.get("new_contacttype"),
+            "_accountid_value": accountid_value,
+            "_parentcustomerid_value": parentcustomerid_value,
+            "jobtitle": contact.get("jobtitle"),
+            "u_fn": contact.get("firstname"),
+            "u_ln": contact.get("lastname"),
+            "address1_city": contact.get("address1_city"),
+            "address1_line1": contact.get("address1_line1"),
+            "address1_line2": contact.get("address1_line2"),
+            "address1_line3": contact.get("address1_line3"),
+            "address1_postalcode": contact.get("address1_postalcode"),
+            "donotemail": contact.get("donotemail"),
+            "donotphone": contact.get("donotphone"),
+            "new_afiupliftemail": contact.get("new_afiupliftemail"),
+            "new_underbridgevanmountemail": contact.get("new_underbridgevanmountemail"),
+            "new_rapidemail": contact.get("new_rapidemail"),
+            "new_rentalsspecialoffers": contact.get("new_rentalsspecialoffers"),
+            "new_resaleemail": contact.get("new_resaleemail"),
+            "new_trackemail": contact.get("new_trackemail"),
+            "new_truckemail": contact.get("new_truckemail"),
+            "new_utnemail": contact.get("new_utnemail"),
+            "new_hoistsemail": contact.get("new_hoistsemail"),
+            "data8_tpsstatus": contact.get("data8_tpsstatus"),
+            "new_lastmewpscall": contact.get("new_lastmewpscall"),
+            "new_lastmewpscallwith": contact.get("new_lastmewpscallwith"),
+            "new_lastemailed": contact.get("new_lastemailed"),
+            "new_lastemailedby": contact.get("new_lastemailedby"),
+            "new_lastcalled": contact.get("new_lastcalled"),
+            "new_lastcalledby": contact.get("new_lastcalledby"),
+            "new_registerforupliftonline": contact.get("new_registerforupliftonline"),
+            "preferredcontactmethodcode": contact.get("preferredcontactmethodcode"),
+        }
+        print("printing attriutes")
+        # attributes['u_em']="jhon@example.com"
+        print(attributes)
+        customer_id=attributes.get("u_em")
+        print(customer_id)
+        final_payload={
+            "type": "transition",
+            "elements": [
+                {
+                    "type": "customer",
+                    "customer_id": customer_id,
+                    "attributes": attributes,
+                },
+                {
+                    "type": "event",
+                    "customer_id": customer_id,
+                    "actions": []  # Empty actions array as per your example
+                },
+            ],
+        }
+        print("printing final payload")
+        print(final_payload)
+        
+        return final_payload
     
 
-    attributes= {
-        # "u_n": contact.get("fullname"),
-        "u_em": contact.get("emailaddress1"),
-        "u_mb": contact.get("mobilephone"),
-        "telephone1": contact.get("telephone1"),
-        "Created On": contact.get("createdon"),
-        "Modified On": contact.get("modifiedon"),
-        "new_contacttype": contact.get("new_contacttype"),
-        "_accountid_value": accountid_value,
-        "_parentcustomerid_value": parentcustomerid_value,
-        "jobtitle": contact.get("jobtitle"),
-        "u_fn": contact.get("firstname"),
-        "u_ln": contact.get("lastname"),
-        "address1_city": contact.get("address1_city"),
-        "address1_line1": contact.get("address1_line1"),
-        "address1_line2": contact.get("address1_line2"),
-        "address1_line3": contact.get("address1_line3"),
-        "address1_postalcode": contact.get("address1_postalcode"),
-        "donotemail": contact.get("donotemail"),
-        "donotphone": contact.get("donotphone"),
-        "new_afiupliftemail": contact.get("new_afiupliftemail"),
-        "new_underbridgevanmountemail": contact.get("new_underbridgevanmountemail"),
-        "new_rapidemail": contact.get("new_rapidemail"),
-        "new_rentalsspecialoffers": contact.get("new_rentalsspecialoffers"),
-        "new_resaleemail": contact.get("new_resaleemail"),
-        "new_trackemail": contact.get("new_trackemail"),
-        "new_truckemail": contact.get("new_truckemail"),
-        "new_utnemail": contact.get("new_utnemail"),
-        "new_hoistsemail": contact.get("new_hoistsemail"),
-        "data8_tpsstatus": contact.get("data8_tpsstatus"),
-        "new_lastmewpscall": contact.get("new_lastmewpscall"),
-        "new_lastmewpscallwith": contact.get("new_lastmewpscallwith"),
-        "new_lastemailed": contact.get("new_lastemailed"),
-        "new_lastemailedby": contact.get("new_lastemailedby"),
-        "new_lastcalled": contact.get("new_lastcalled"),
-        "new_lastcalledby": contact.get("new_lastcalledby"),
-        "new_registerforupliftonline": contact.get("new_registerforupliftonline"),
-        "preferredcontactmethodcode": contact.get("preferredcontactmethodcode"),
-    }
-    print("printing attriutes")
-    # attributes['u_em']="jhon@example.com"
-    print(attributes)
-    customer_id=attributes.get("u_em")
-    print(customer_id)
-    final_payload={
-        "type": "transition",
-        "elements": [
-            {
-                "type": "customer",
-                "customer_id": customer_id,
-                "attributes": attributes,
-            },
-            {
-                "type": "event",
-                "customer_id": customer_id,
-                "actions": []  # Empty actions array as per your example
-            },
-        ],
-    }
-    print("printing final payload")
-    print(final_payload)
+    except Exception as e:
+        error_message=f"error in map_contact_to_moengage in contacts:{str(e)}"
+        log_error(S3_BUCKET_NAME, error_message)
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
     
-    return final_payload
 
 
 @router.get("/sync")
@@ -267,47 +278,54 @@ async def send_to_moengage(contacts):
     }
 
     # Send contacts to MoEngage
-    for contact in contacts:
-        payload = map_contact_to_moengage(contact)
-        print("printing payload")
-        print(payload)
-        response = requests.post(MOENGAGE_API_URL, json=payload, headers=headers)
-        if response.status_code == 200:
-            print(f"Contact sent successfully for {contact['emailaddress1']} ")
-            success_count+=1
+    try:
+        for contact in contacts:
+            payload = map_contact_to_moengage(contact)
+            print("printing payload")
+            print(payload)
+            response = requests.post(MOENGAGE_API_URL, json=payload, headers=headers)
+            if response.status_code == 200:
+                print(f"Contact sent successfully for {contact['emailaddress1']} ")
+                success_count+=1
 
-            record = {
-                "email": contact['emailaddress1'],
-                "error": response.text
-            }
-            success_records.append(record)
-        else:
-            print(f"Failed to send contact {contact['emailaddress1']}: {response.text}")
-            fail_count+=1
-            record = {
-                "email": contact['emailaddress1'],
-                "error": response.text
-            }
-            failed_records.append(record)
-            await send_to_SQS(payload)
+                record = {
+                    "email": contact['emailaddress1'],
+                    "error": response.text
+                }
+                success_records.append(record)
+            else:
+                print(f"Failed to send contact {contact['emailaddress1']}: {response.text}")
+                fail_count+=1
+                record = {
+                    "email": contact['emailaddress1'],
+                    "error": response.text
+                }
+                failed_records.append(record)
+                await send_to_SQS(payload)
 
-    log_message = json.dumps({
-        "timestamp": datetime.utcnow().isoformat(),
-        "success_count": success_count,
-        "fail_count": fail_count,
-        "total_accounts": len(contacts),
-        "success_records": success_records,
-        "failed_records": failed_records
-    }, indent=4)  # Optional: indent makes JSON more readable
+        log_message = json.dumps({
+            "timestamp": datetime.utcnow().isoformat(),
+            "success_count": success_count,
+            "fail_count": fail_count,
+            "total_accounts": len(contacts),
+            "success_records": success_records,
+            "failed_records": failed_records
+        }, indent=4)  # Optional: indent makes JSON more readable
 
-    log_processedRecords(S3_BUCKET_NAME, log_message)
+        log_processedRecords(S3_BUCKET_NAME, log_message)
+
+
+    except Exception as e:
+        error_message = f"Error during send-to-moengage function in contacts: {str(e)}"
+        log_error(S3_BUCKET_NAME, error_message)
+        raise HTTPException(status_code=500,details="Please contact the Developer")
 
 
 
 @router.post("/SQS")  # Fixed route path
-async def send_to_SQS(failed_payload: dict):  # Explicitly type `failed_payload` as a dictionary
-    # Create a new SQS client
-    sqs = boto3.client('sqs', region_name="eu-north-1")  # Specify the region explicitly if required
+async def send_to_SQS(failed_payload: dict):  
+
+    sqs = boto3.client('sqs', region_name="eu-north-1")  
     queue_url = "https://sqs.eu-north-1.amazonaws.com/062314917923/TestRevanth"  
 
 
@@ -335,66 +353,3 @@ async def send_to_SQS(failed_payload: dict):  # Explicitly type `failed_payload`
 
 
 
-# @router.get("/retry-contacts")
-# async def retry_failed_payloads_from_sqs():
-#     sqs = boto3.client('sqs')
-#     queue_url = "https://sqs.eu-north-1.amazonaws.com/062314917923/TestRevanth"
-
-#     try:
-#         while True:
-#             # Receive messages from SQS
-#             response = sqs.receive_message(
-#                 QueueUrl=queue_url,
-#                 MaxNumberOfMessages=10,
-#                 WaitTimeSeconds=10
-#             )
-
-#             # If no messages are found, break the loop
-#             if 'Messages' not in response:
-#                 print("No more messages to process.")
-#                 break
-
-#             for message in response['Messages']:
-#                 try:
-#                     # Inspect the raw body before parsing
-#                     raw_body = message['Body']
-#                     print(f"Raw message body: {raw_body}")
-
-#                     # Attempt to parse the message body
-#                     try:
-#                         payload = json.loads(raw_body)
-#                     except json.JSONDecodeError as e:
-#                         print(f"Invalid JSON in message body: {raw_body}, Error: {str(e)}")
-#                         # Optionally, log the error and skip this message
-#                         continue
-
-#                     # Retry sending the payload to MoEngage
-#                     headers = {
-#                         'Authorization': token_moe,
-#                         'Content-Type': 'application/json',
-#                         'MOE-APPKEY': '6978DCU8W19J0XQOKS7NEE1C_DEBUG'
-#                     }
-#                     response = requests.post(MOENGAGE_API_URL, json=payload, headers=headers)
-
-#                     if response.status_code == 200:
-#                         print(f"Successfully retried payload: {payload}")
-#                         return {"your finished"}
-#                     else:
-#                         print(f"Failed to retry payload: {payload}, Error: {response.text}")
-#                         raise Exception(response.text)
-
-#                     # Delete the message from the queue upon success
-#                     sqs.delete_message(
-#                         QueueUrl=queue_url,
-#                         ReceiptHandle=message['ReceiptHandle']
-#                     )
-#                     print("Message deleted from SQS.")
-
-#                 except Exception as e:
-#                     print(f"Error processing message: {str(e)}")
-#                     # Optionally, log the error and leave the message in SQS for another retry
-
-#     except Exception as e:
-#         error_message = f"Error while retrying failed payloads from SQS: {str(e)}"
-#         log_error(S3_BUCKET_NAME, error_message)
-#         raise HTTPException(status_code=500, detail=error_message)

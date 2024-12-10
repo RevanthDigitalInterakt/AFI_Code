@@ -118,81 +118,87 @@ async def fetch_accounts():
 def map_account_to_moengage(account):
 
     """Map account fields from CRM to MoEngage."""
+    try:
 
 
 
-    primary_hire_account=account.get("new_PrimaryHireContact")
-    primary_training_contact=account.get("new_PrimaryTrainingContact")
+        primary_hire_account=account.get("new_PrimaryHireContact")
+        primary_training_contact=account.get("new_PrimaryTrainingContact")
 
-    primary_account_value=account.get("new_PrimaryHireContact",{}).get("emailaddress1","No Hire Value") if primary_hire_account else None
-    primary_training_value=account.get("new_PrimaryTrainingContact",{}).get("emailaddress1","NO Training Value") if primary_training_contact else None
-    
+        primary_account_value=account.get("new_PrimaryHireContact",{}).get("emailaddress1","No Hire Value") if primary_hire_account else None
+        primary_training_value=account.get("new_PrimaryTrainingContact",{}).get("emailaddress1","NO Training Value") if primary_training_contact else None
+        
 
-    attributes= {
-        "Account Number": account.get("accountnumber"),
-        "u_em": account.get("emailaddress1"),
-        "u_mb": account.get("telephone1"),
-        "Account Name": account.get("name"),
-        "Created On": account.get("createdon"),
-        "Modified On": account.get("modifiedon"),
-        "new_afiUpliftemail": account.get("new_afiupliftemail"),
-        "new_underbridgevanmountemail": account.get("new_underbridgevanmountemail"),
-        "Rapid Email": account.get("new_rapidemail"),
-        "Rentals Special Offers": account.get("new_rentalsspecialoffers"),
-        "Rsale Email": account.get("new_resaleemail"),
-        "Track Email": account.get("new_trackemail"),
-        "Truck Email": account.get("new_truckemail"),
-        "UTN Email": account.get("new_utnemail"),
-        "Hoists Email": account.get("new_hoistsemail"),
-        "address1_city": account.get("address1_city"),
-        "SIC Code": account.get("sic"),
-        "Company Registration No": account.get("new_registration_no"),
-        "Primary Hire Contact": account.get("_new_primaryhirecontact_value"),
-        "Primary Hire Contact": primary_account_value,
-        "Last Invoice Date": account.get("new_lastinvoicedate"),
-        "Last Training Date": account.get("new_lasttrainingdate"),
-        "Group AM": account.get("new_groupaccountmanager"),
-        "Rental AM": account.get("new_rentalam"),
-        "donotphone": account.get("donotphone"),
-        "donotemail": account.get("donotemail"),
-        "Primary Training Contact": account.get("_new_primarytrainingcontact_value"),
-        "Primary Training Contact": primary_training_value,
-        "address1_line1": account.get("address1_line1"),
-        "address1_line2": account.get("address1_line2"),
-        "address1_line3": account.get("address1_line3"),
-        "Credit Limit": account.get("creditlimit"),
-        "2 Years Ago Spent": account.get("new_twoyearsagorevenue"),
-        "TPS Status": account.get("data8_tpsstatus"),
-        "Credit Position": account.get("new_creditposition"),
-        "Last Year Spent": account.get("new_lastyearrevenue"),
-        "Account Status": account.get("statuscode"),
-        "Postal Code": account.get("address1_postalcode"),
-        "new_accountopened": account.get("new_accountopened"),
-    }
+        attributes= {
+            "Account Number": account.get("accountnumber"),
+            "u_em": account.get("emailaddress1"),
+            "u_mb": account.get("telephone1"),
+            "Account Name": account.get("name"),
+            "Created On": account.get("createdon"),
+            "Modified On": account.get("modifiedon"),
+            "new_afiUpliftemail": account.get("new_afiupliftemail"),
+            "new_underbridgevanmountemail": account.get("new_underbridgevanmountemail"),
+            "Rapid Email": account.get("new_rapidemail"),
+            "Rentals Special Offers": account.get("new_rentalsspecialoffers"),
+            "Rsale Email": account.get("new_resaleemail"),
+            "Track Email": account.get("new_trackemail"),
+            "Truck Email": account.get("new_truckemail"),
+            "UTN Email": account.get("new_utnemail"),
+            "Hoists Email": account.get("new_hoistsemail"),
+            "address1_city": account.get("address1_city"),
+            "SIC Code": account.get("sic"),
+            "Company Registration No": account.get("new_registration_no"),
+            "Primary Hire Contact": account.get("_new_primaryhirecontact_value"),
+            "Primary Hire Contact": primary_account_value,
+            "Last Invoice Date": account.get("new_lastinvoicedate"),
+            "Last Training Date": account.get("new_lasttrainingdate"),
+            "Group AM": account.get("new_groupaccountmanager"),
+            "Rental AM": account.get("new_rentalam"),
+            "donotphone": account.get("donotphone"),
+            "donotemail": account.get("donotemail"),
+            "Primary Training Contact": account.get("_new_primarytrainingcontact_value"),
+            "Primary Training Contact": primary_training_value,
+            "address1_line1": account.get("address1_line1"),
+            "address1_line2": account.get("address1_line2"),
+            "address1_line3": account.get("address1_line3"),
+            "Credit Limit": account.get("creditlimit"),
+            "2 Years Ago Spent": account.get("new_twoyearsagorevenue"),
+            "TPS Status": account.get("data8_tpsstatus"),
+            "Credit Position": account.get("new_creditposition"),
+            "Last Year Spent": account.get("new_lastyearrevenue"),
+            "Account Status": account.get("statuscode"),
+            "Postal Code": account.get("address1_postalcode"),
+            "new_accountopened": account.get("new_accountopened"),
+        }
 
 
 
-    customer_id=attributes.get("u_em")
+        customer_id=attributes.get("u_em")
 
-    final_payload={
-        "type": "transition",
-        "elements": [
-            {
-                "type": "customer",
-                "customer_id": customer_id,
-                "attributes": attributes,
-            },
-            {
-                "type": "event",
-                "customer_id": customer_id,
-                "device_id": "96bd03b6-defc-4203-83d3-dc1c73080232",  # Replace with actual device ID if available
-                "actions": []  # Empty actions array as per your example
-            },
-        ],
-    }
-    print(final_payload)
-    
-    return final_payload
+        final_payload={
+            "type": "transition",
+            "elements": [
+                {
+                    "type": "customer",
+                    "customer_id": customer_id,
+                    "attributes": attributes,
+                },
+                {
+                    "type": "event",
+                    "customer_id": customer_id,
+                    "device_id": "96bd03b6-defc-4203-83d3-dc1c73080232",  # Replace with actual device ID if available
+                    "actions": []  # Empty actions array as per your example
+                },
+            ],
+        }
+        print(final_payload)
+        
+        return final_payload
+
+    except Exception as e:
+        error_message = f"Error during map-to-account function: {str(e)}"
+        log_error(S3_BUCKET_NAME, error_message)
+        raise HTTPException(status_code=500,details="failed in map-to-account function")
 
 
 
@@ -201,7 +207,6 @@ def map_account_to_moengage(account):
 @router.get("/sync")
 async def sync_accounts():
     """Fetch accounts from CRM and send them to MoEngage."""
-    
     
     try:
         print("enetered sync accounts")
@@ -250,7 +255,7 @@ async def send_to_moengage(accounts):
                 }
                 success_records.append(record)
                 print(success_records)
-                print(f"Lead {account['emailaddress1']} sent successfully")
+                print(f"Account {account['emailaddress1']} sent successfully")
             else:
                 print(f"Failed to send account {account['emailaddress1']}: {response.text}")
                 fail_count+=1
@@ -261,7 +266,7 @@ async def send_to_moengage(accounts):
                 failed_records.append(record)
                 await send_to_SQS(payload)
                 print(failed_records)
-                print(f"Lead {account['emailaddress1']} sent successfully")
+                print(f"Account {account['emailaddress1']} sent successfully")
 
 
         log_message = json.dumps({
@@ -299,7 +304,7 @@ async def send_to_SQS(failed_payload: dict):  # Explicitly type `failed_payload`
 # 'new_lastemailed': None, 'new_lastemailedby': None, 'new_lastcalled': None, 'new_lastcalledby': None, 'new_registerforupliftonline': None, 'preferredcontactmethodcode': 1}}, {'type': 'event', 'customer_id': 'derek@derekmcaleese.com', 'actions': []}]}
 #     failed_payload=payload
 
-
+    failed_payload={"invalid":"payload"}
 
     try:
         # Serialize and send the message to the SQS queue

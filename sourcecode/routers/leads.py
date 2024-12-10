@@ -96,7 +96,7 @@ async def fetch_leads():
         global_token=token  # Ensure you're awaiting the async function
         if not token:
             raise HTTPException(status_code=401, detail="Failed to retrieve access token")
-        print(f"Token: {token}")
+        # print(f"Token: {token}")
 
         # Prepare the headers for the request
         headers = {
@@ -241,6 +241,8 @@ async def map_lead_to_moengage(lead):
         return final_payload
     
     except Exception as e:
+        error_message = f"Error during map-to-lead function: {str(e)}"
+        log_error(S3_BUCKET_NAME, error_message)
         raise HTTPException(status_code=500,details="failed in map function")
 
 
@@ -287,31 +289,33 @@ async def send_to_moengage(leads):
                 await send_to_SQS(payload)
 
                 print(f"Failed to send lead {lead['emailaddress1']}: {response.text}")
-                
 
-    except Exception as e:
-        print(str(e))
 
-    log_message = json.dumps({
+        log_message = json.dumps({
         "timestamp": datetime.utcnow().isoformat(),
         "success_count": success_count,
         "fail_count": fail_count,
         "total_accounts": len(leads),
         "success_records": success_records,
         "failed_records": failed_records
-    }, indent=4)  # Optional: indent makes JSON more readable
+      }, indent=4)  # Optional: indent makes JSON more readable
 
-    log_processedRecords(S3_BUCKET_NAME, log_message)
+        log_processedRecords(S3_BUCKET_NAME, log_message)       
+
+    except Exception as e:
+        error_message = f"Error during send-to-moengage function: {str(e)}"
+        log_error(S3_BUCKET_NAME, error_message)
+        raise HTTPException(status_code=500,details="Please contact the Developer")
+   
+
+    
 
 @router.post("/SQS")  # Fixed route path
 async def send_to_SQS(failed_payload: dict):  # Explicitly type `failed_payload` as a dictionary
     # Create a new SQS client
     sqs = boto3.client('sqs', region_name="eu-north-1")  # Specify the region explicitly if required
     queue_url = "https://sqs.eu-north-1.amazonaws.com/062314917923/TestRevanth"  # Replace with your SQS URL
-#     payload= {'type': 'transition', 'elements': [{'type': 'customer', 'customer_id': 'derek@derekmcaleese.com', 'attributes': {'u_em': 'derek@derekmcaleese.com', 'u_mb': None, 
-# 'telephone1': '01233 638996', 'Created On': '2019-07-06T06:53:46Z', 'Modified On': None, 'new_contacttype': None, '_accountid_value': None, '_parentcustomerid_value': 'DESTRA ENGINEERING LIMITED', 'jobtitle': 'Managing Director', 'u_fn': 'Derek', 'u_ln': 'Rawlings', 'address1_city': 'ASHFORD', 'address1_line1': 'Unit 5 St Georges Bus Ctr', 'address1_line2': 'Brunswick Rd Cobbs Wood', 'address1_line3': None, 'address1_postalcode': 'TN23 1EL', 'donotemail': False, 'donotphone': False, 'new_afiupliftemail': True, 'new_underbridgevanmountemail': None, 'new_rapidemail': True, 'new_rentalsspecialoffers': None, 'new_resaleemail': True, 'new_trackemail': None, 'new_truckemail': None, 'new_utnemail': True, 'new_hoistsemail': None, 'data8_tpsstatus': None, 'new_lastmewpscall': None, 'new_lastmewpscallwith': None, 
-# 'new_lastemailed': None, 'new_lastemailedby': None, 'new_lastcalled': None, 'new_lastcalledby': None, 'new_registerforupliftonline': None, 'preferredcontactmethodcode': 1}}, {'type': 'event', 'customer_id': 'derek@derekmcaleese.com', 'actions': []}]}
-#     failed_payload=payload
+
     try:
         # Serialize and send the message to the SQS queue
         response = sqs.send_message(
@@ -595,7 +599,7 @@ async def retry_failed_payloads_from_sqs():
 
                     if response.status_code == 200:
                         print(f"Successfully retried payload: {payload}")
-                        return {"your finished"}
+                        
                     else:
                         print(f"Failed to retry payload: {payload}, Error: {response.text}")
                         raise Exception(response.text)
@@ -616,58 +620,5 @@ async def retry_failed_payloads_from_sqs():
         log_error(S3_BUCKET_NAME, error_message)
         raise HTTPException(status_code=500, detail=error_message)
 
-
-
-# async def retry_failed_payloads_from_sqs():
-#     sqs = boto3.client('sqs')
-#     queue_url = "https://sqs.eu-north-1.amazonaws.com/062314917923/TestRevanth"  # Replace with your SQS URL
-
-#     try:
-#         while True:  
-#             response = sqs.receive_message(
-#                 QueueUrl=queue_url,
-#                 MaxNumberOfMessages=10,  # Fetch up to 10 messages
-#                 WaitTimeSeconds=10       # Long polling
-#             )
-
-#             # If no messages are found, break the loop
-#             if 'Messages' not in response:
-#                 print("No more messages to process.")
-#                 break
-
-#             for message in response['Messages']:
-#                 try:
-#                     # Parse the message body
-#                     payload = json.loads(message['Body'])
-
-#                     # Retry sending the payload to MoEngage
-#                     headers = {
-#                         'Authorization': token_moe,
-#                         'Content-Type': 'application/json',
-#                         'MOE-APPKEY': '6978DCU8W19J0XQOKS7NEE1C_DEBUG'
-#                     }
-#                     response = requests.post(MOENGAGE_API_URL, json=payload, headers=headers)
-
-#                     if response.status_code == 200:
-#                         print(f"Successfully retried payload: {payload}")
-#                     else:
-#                         print(f"Failed to retry payload: {payload}, Error: {response.text}")
-#                         raise Exception(response.text)
-
-#                     # Delete the message from the queue upon success
-#                     sqs.delete_message(
-#                         QueueUrl=queue_url,
-#                         ReceiptHandle=message['ReceiptHandle']
-#                     )
-#                     print("Message deleted from SQS.")
-
-#                 except Exception as e:
-#                     print(f"Error processing message: {str(e)}")
-#                     # Optionally, log the error and leave the message in SQS for another retry
-
-#     except Exception as e:
-#         error_message = f"Error while retrying failed payloads from SQS: {str(e)}"
-#         log_error(S3_BUCKET_NAME, error_message)
-#         raise HTTPException(status_code=500, detail=error_message)
 
 
