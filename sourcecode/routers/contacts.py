@@ -200,6 +200,7 @@ def map_contact_to_moengage(contact):
             "new_hoistsemail": contact.get("new_hoistsemail"),
             "data8_tpsstatus": contact.get("data8_tpsstatus"),
             "new_lastmewpscall": contact.get("new_lastmewpscall"),
+            "Last MEWPS Call By": contact.get("new_lastmewpscallby"),
             "new_lastmewpscallwith": contact.get("new_lastmewpscallwith"),
             "new_lastemailed": contact.get("new_lastemailed"),
             "new_lastemailedby": contact.get("new_lastemailedby"),

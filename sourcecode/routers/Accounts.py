@@ -169,6 +169,7 @@ def map_account_to_moengage(account):
             "Account Status": account.get("statuscode"),
             "Postal Code": account.get("address1_postalcode"),
             "new_accountopened": account.get("new_accountopened"),
+            "YTD": account.get("new_ytdrevenue"),
         }
 
 
