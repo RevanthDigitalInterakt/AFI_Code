@@ -202,8 +202,6 @@ def map_account_to_moengage(account):
 
 
 
-
-
 @router.get("/sync")
 async def sync_accounts():
     """Fetch accounts from CRM and send them to MoEngage."""

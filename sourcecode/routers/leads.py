@@ -213,7 +213,7 @@ async def map_lead_to_moengage(lead):
             "Created On": lead.get("createdon" ),  # Created date
             "Owner": internal_email_address,
             "Topic": lead.get("subject"),  
-            # "Modified On": account.get("modifiedon"),
+            "Modified On": lead.get("modifiedon"),
             "Parent Contact Email": parent_contact_email,  # Parent contact email
             "Parent Account Number": parent_account_number  # Parent account number  
 
