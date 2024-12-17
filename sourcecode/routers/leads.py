@@ -263,32 +263,40 @@ async def send_to_moengage(leads):
     try:
         for lead in leads:
             payload = await map_lead_to_moengage(lead)
-          
-            response = requests.post(MOENGAGE_API_URL, json=payload, headers=headers)
+            try:
+                response = requests.post(MOENGAGE_API_URL, json=payload, headers=headers)
 
-            if response.status_code == 200:
-                success_count += 1
-                record = {
-                    "email": lead['emailaddress1'],
-                    "status": response.text
-                }
-                success_records.append(record)
-                print(f"Lead {lead['emailaddress1']} sent successfully")
+                if response.status_code == 200:
+                    success_count += 1
+                    record = {
+                        "email": lead['emailaddress1'],
+                        "status": response.text
+                    }
+                    success_records.append(record)
+                    print(f"Lead {lead['emailaddress1']} sent successfully")
 
-            else:
-                fail_count += 1
-                record = {
-                    "email": lead['emailaddress1'],
-                    "error": response.text
-                }
+                else:
+                    fail_count += 1
+                    record = {
+                        "email": lead['emailaddress1'],
+                        "error": response.text
+                    }
 
 
-                failed_records.append(record)
+                    failed_records.append(record)
 
-                # send the falied payload to sqs
-                await send_to_SQS(payload)
+                    # send the falied payload to sqs
+                    await send_to_SQS(payload)
+                    print(failed_records)
+                    error_message = f"Failed to send account {lead['emailaddress1']}: {response.text}"
+                    log_error(S3_BUCKET_NAME, error_message)  # Log the error
+                    print(f"Failed to send lead {lead['emailaddress1']} failed with error: {response.text}")
 
-                print(f"Failed to send lead {lead['emailaddress1']}: {response.text}")
+            except Exception as e:
+                print(e)
+                error_message=f"Error Occured while sending the payload to moengage:{str(e)}"
+                log_error(S3_BUCKET_NAME, error_message)
+                raise HTTPException(status_code=500,details=f"{str(e)}")       
 
 
         log_message = json.dumps({
