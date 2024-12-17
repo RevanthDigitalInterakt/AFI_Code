@@ -112,8 +112,10 @@ async def fetch_leads():
 
         print(f"Formatted time: {period}")
 
+
+        #
         # Set the API endpoint to fetch leads from Dynamics 365 CRM # top 5 is set up here for dev
-        leads_url = f"{CRM_API_URL}/api/data/v9.0/leads?$filter=(createdon ge {period} or modifiedon ge {period})&$select=lastname,new_afileadscore,_parentcontactid_value,_parentaccountid_value,companyname,mobilephone,telephone1,emailaddress1,new_leadtype,leadsourcecode,new_utm_campaign,new_utm_campaignname,new_utm_content,new_utm_source,new_utm_medium,new_utm_term,new_utm_keyword,createdon,_ownerid_value,statuscode,subject&$expand=parentcontactid($select=emailaddress1),parentaccountid($select=accountnumber)"
+        leads_url = f"{CRM_API_URL}/api/data/v9.0/leads?$filter=(createdon ge {period} or modifiedon ge {period} )&$select=lastname,new_afileadscore,_parentcontactid_value,_parentaccountid_value,companyname,mobilephone,telephone1,emailaddress1,new_leadtype,leadsourcecode,new_utm_campaign,new_utm_campaignname,new_utm_content,new_utm_source,new_utm_medium,new_utm_term,new_utm_keyword,createdon,_ownerid_value,statuscode,subject&$expand=parentcontactid($select=emailaddress1),parentaccountid($select=accountnumber)"
 
         # Initialize an empty list to store leads
         all_leads = []
@@ -194,30 +196,56 @@ async def map_lead_to_moengage(lead):
         print("check email here\n")
         print(internal_email_address)
 
-        payload = {
-            "leadid": lead.get("leadid"),
-            "u_em": lead.get("emailaddress1"),  
-            "u_mb": lead.get("mobilephone"),  
-            "telephone1": lead.get("telephone1"), 
-            "Company Name": lead.get("companyname" ),  # Company name
-            "Lead Type": lead_type,  # Use the mapped value
-            "Lead Source Code": lead_source,  # Use the mapped value
-            "Status Code": lead_status,  # Use the mapped value
-            "new_utm_campaign": lead.get("new_utm_campaign" ),  # UTM Campaign
-            "new_utm_campaignname": lead.get("new_utm_campaignname" ),  # UTM Campaign Name
-            "new_utm_content": lead.get("new_utm_content" ),  # UTM Content
-            "new_utm_source": lead.get("new_utm_source" ),  # UTM Source
-            "new_utm_medium": lead.get("new_utm_medium" ),  # UTM Medium
-            "new_utm_term": lead.get("new_utm_term" ),  # UTM Term
-            "new_utm_keyword": lead.get("new_utm_keyword" ),  # UTM Keyword
-            "Created On": lead.get("createdon" ),  # Created date
-            "Owner": internal_email_address,
-            "Topic": lead.get("subject"),  
-            "Modified On": lead.get("modifiedon"),
-            "Parent Contact Email": parent_contact_email,  # Parent contact email
-            "Parent Account Number": parent_account_number  # Parent account number  
+        # payload = {
+        #     "leadid": lead.get("leadid"),
+        #     "u_em": lead.get("emailaddress1"),  
+        #     "u_mb": lead.get("mobilephone"),  
+        #     "telephone1": lead.get("telephone1"), 
+        #     "Company Name": lead.get("companyname" ),  # Company name
+        #     "Lead Type": lead_type,  # Use the mapped value
+        #     "Lead Source Code": lead_source,  # Use the mapped value
+        #     "Status Code": lead_status,  # Use the mapped value
+        #     "new_utm_campaign": lead.get("new_utm_campaign" ),  # UTM Campaign
+        #     "new_utm_campaignname": lead.get("new_utm_campaignname" ),  # UTM Campaign Name
+        #     "new_utm_content": lead.get("new_utm_content" ),  # UTM Content
+        #     "new_utm_source": lead.get("new_utm_source" ),  # UTM Source
+        #     "new_utm_medium": lead.get("new_utm_medium" ),  # UTM Medium
+        #     "new_utm_term": lead.get("new_utm_term" ),  # UTM Term
+        #     "new_utm_keyword": lead.get("new_utm_keyword" ),  # UTM Keyword
+        #     "Created On": lead.get("createdon" ),  # Created date
+        #     "Owner": internal_email_address,
+        #     "Topic": lead.get("subject"),  
+        #     "Modified On": lead.get("modifiedon"),
+        #     "Parent Contact Email": parent_contact_email,  # Parent contact email
+        #     "Parent Account Number": parent_account_number  # Parent account number  
 
-        }
+        # }
+
+        payload = {
+                "leadid": lead.get("leadid", "") or "",
+                "u_em": lead.get("emailaddress1", "") or "",  
+                "u_mb": lead.get("mobilephone", "") or "",  
+                "lead_telephone1": lead.get("telephone1", "") or "", 
+                "lead_Company Name": lead.get("companyname", "") or "",  # Company name
+                "lead_Lead Type": lead_type if lead_type else "",  # Use the mapped value
+                "lead_Lead Source Code": lead_source if lead_source else "",  # Use the mapped value
+                "lead_Status Code": lead_status if lead_status else "",  # Use the mapped value
+                "lead_new_utm_campaign": lead.get("new_utm_campaign", "") or "",  # UTM Campaign
+                "lead_new_utm_campaignname": lead.get("new_utm_campaignname", "") or "",  # UTM Campaign Name
+                "lead_new_utm_content": lead.get("new_utm_content", "") or "",  # UTM Content
+                "lead_new_utm_source": lead.get("new_utm_source", "") or "",  # UTM Source
+                "lead_new_utm_medium": lead.get("new_utm_medium", "") or "",  # UTM Medium
+                "lead_new_utm_term": lead.get("new_utm_term", "") or "",  # UTM Term
+                "lead_new_utm_keyword": lead.get("new_utm_keyword", "") or "",  # UTM Keyword
+                "lead_Created On": lead.get("createdon", "") or "",  # Created date
+                "lead_Modified On": lead.get("modifiedon", "") or "",  # Modified date
+                "lead_Owner": internal_email_address if internal_email_address else "",  # Owner
+                "lead_Topic": lead.get("subject", "") or "",  # Topic
+                "lead_Parent Contact Email": parent_contact_email if parent_contact_email else "",  # Parent contact email
+                "lead_Parent Account Number": parent_account_number if parent_account_number else ""  # Parent account number
+            }
+
+
 
         print("caling meta data for other attributes")
         
