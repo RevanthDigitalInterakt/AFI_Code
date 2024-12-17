@@ -105,7 +105,7 @@ async def fetch_leads():
         }
 
         # Get the current time and subtract one hour to get the time range
-        one_hour_ago = (datetime.utcnow() - timedelta(hours=1))
+        one_hour_ago = (datetime.utcnow() - timedelta(hours=4))
 
         # Format the DateTimeOffset correctly for CRM API (including UTC timezone)
         period = one_hour_ago.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'  # Exclude extra microseconds and add 'Z' for UTC
@@ -191,7 +191,8 @@ async def map_lead_to_moengage(lead):
         print(lead_status)
 
         print("owner id")
-        email_data_response = await fetch_email_from_lead()
+        owner_id=lead.get("_ownerid_value")
+        email_data_response = await fetch_email_from_lead(owner_id)
         internal_email_address = email_data_response["internal_email_address"]
         print("check email here\n")
         print(internal_email_address)
@@ -522,7 +523,8 @@ async def fetch_leadsourcecode_metadata(attribute: str = Query("leadsourcecode",
 
 
 
-async def fetch_email_from_lead():
+async def fetch_email_from_lead(owner_id:str):
+    print("entered email fun")
 
     global global_token
     try:
@@ -535,36 +537,42 @@ async def fetch_email_from_lead():
             "Content-Type": "application/json"
         }
 
-        # Step 1: Fetch _ownerid_value from the Leads API
-        leads_url = (
-            f"{CRM_API_URL}/api/data/v9.0/leads"
-            "?$select=_ownerid_value"
-            "&$orderby=createdon desc"
-        )
-        leads_response = requests.get(leads_url, headers=headers)
-        # print("Leads Response:", leads_response.status_code, leads_response.text)  
-        leads_response.raise_for_status()
+        # leads_url = (
+        #     f"{CRM_API_URL}/api/data/v9.0/leads"
+        #     "?$select={owner_id}"
+        #     "&$orderby=createdon desc"
+        # )
+
+        # print(leads_url)
+        # leads_response = requests.get(leads_url, headers=headers)
+        # # print("Leads Response:", leads_response.status_code, leads_response.text)  
+        # leads_response.raise_for_status()
         
-        leads_data = leads_response.json()
-        if not leads_data.get("value"):
-            raise HTTPException(status_code=404, detail="No leads found.")
+        # leads_data = leads_response.json()
+        # if not leads_data.get("value"):
+        #     raise HTTPException(status_code=404, detail="No leads found.")
         
-        # Get the first _ownerid_value
-        _ownerid_value = leads_data["value"][0].get("_ownerid_value")
-        if not _ownerid_value:
-            raise HTTPException(status_code=404, detail="_ownerid_value not found in the lead.")
+        # # Get the first _ownerid_value
+        # _ownerid_value = leads_data["value"][0].get("_ownerid_value")
+        # print("checking owner id in email function")
+        # print(_ownerid_value)
+        # if not _ownerid_value:
+        #     raise HTTPException(status_code=404, detail="_ownerid_value not found in the lead.")
 
 
         system_user_url = (
             f"{CRM_API_URL}/api/data/v9.0/systemusers"
-            f"?$filter=systemuserid eq {_ownerid_value}"
+            f"?$filter=systemuserid eq {owner_id}"
             "&$select=internalemailaddress,fullname"
         )
+        print(system_user_url)
         system_user_response = requests.get(system_user_url, headers=headers)
         # print("System User Response:", system_user_response.status_code, system_user_response.text) 
         system_user_response.raise_for_status()
 
         system_user_data = system_user_response.json()
+        print("printing email")
+        print(system_user_data)
         if not system_user_data.get("value"):
             raise HTTPException(status_code=404, detail="No system user found with the given _ownerid_value.")
 
