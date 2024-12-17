@@ -134,11 +134,11 @@ async def fetch_contacts():
          
             }
 
-        query="emailaddress1,_accountid_value,_parentcustomerid_value,telephone1,mobilephone,jobtitle,firstname,address1_city,lastname,address1_line1,address1_line2,address1_line3,address1_postalcode,donotemail,donotphone,new_afiupliftemail,new_underbridgevanmountemail,new_rapidemail,new_rentalsspecialoffers,new_resaleemail,new_trackemail,new_truckemail,new_utnemail,new_hoistsemail,data8_tpsstatus,new_lastmewpscall,new_lastmewpscallwith,new_lastemailed,new_lastemailedby,new_lastcalled,new_lastcalledby,new_registerforupliftonline,createdon,preferredcontactmethodcode"       
-        
+        query="emailaddress1,_accountid_value,_parentcustomerid_value,modifiedon,telephone1,mobilephone,jobtitle,firstname,address1_city,lastname,address1_line1,address1_line2,address1_line3,address1_postalcode,donotemail,donotphone,new_afiupliftemail,new_underbridgevanmountemail,new_rapidemail,new_rentalsspecialoffers,new_resaleemail,new_trackemail,new_truckemail,new_utnemail,new_hoistsemail,data8_tpsstatus,new_lastmewpscall,new_lastmewpscallwith,new_lastemailed,new_lastemailedby,new_lastcalled,new_lastcalledby,new_registerforupliftonline,createdon,preferredcontactmethodcode"       
+        query2="$expand=parentcustomerid_account($select=accountnumber,name,new_accountopened,creditlimit,new_creditposition,new_ytdrevenue,new_lastyearrevenue,new_twoyearsagorevenue,data8_tpsstatus,address1_line1,address1_line2,address1_line3,address1_city,address1_postalcode,sic,new_registration_no,_new_primaryhirecontact_value,_new_primarytrainingcontact_value,new_lastinvoicedate,new_lasttrainingdate,new_groupaccountmanager,new_rentalam,donotemail,donotphone,new_afiupliftemail,new_underbridgevanmountemail,new_rapidemail,new_rentalsspecialoffers,new_resaleemail,new_trackemail,new_truckemail,new_utnemail,new_hoistsemail,emailaddress1;$expand=new_PrimaryHireContact($select=emailaddress1),new_PrimaryTrainingContact($select=emailaddress1))"
         period = (datetime.utcnow() - timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
 
-        contacts_url = f"{CRM_API_URL}/api/data/v9.0/contacts?$filter=(createdon ge {period} or modifiedon ge {period})&$select={query}&$expand=parentcustomerid_account($select=accountnumber),parentcustomerid_account($select=name)"
+        contacts_url = f"{CRM_API_URL}/api/data/v9.0/contacts?$filter=(createdon ge {period} or modifiedon ge {period})&$select={query}&{query2}"
         all_contacts = []
         print("just entered contacts")
         while contacts_url:
@@ -160,60 +160,225 @@ async def fetch_contacts():
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 
-def map_contact_to_moengage(contact):
+# def map_contact_to_moengage(contact):
 
-    try:
+#     try:
    
-        parent_contact=contact.get("parentcustomerid_account")
-        accountid_value = contact.get("parentcustomerid_account", {}).get("accountnumber", "No Account Number") if parent_contact  else None
-        parentcustomerid_value = contact.get("parentcustomerid_account", {}).get("name", "No Account Name") if parent_contact  else None
-        
+#         parent_contact=contact.get("parentcustomerid_account")
+#         accountid_value = contact.get("parentcustomerid_account", {}).get("accountnumber", "No Account Number") if parent_contact  else None
+#         parentcustomerid_value = contact.get("parentcustomerid_account", {}).get("name", "No Account Name") if parent_contact  else None
 
-        attributes= {
-            # "u_n": contact.get("fullname"),
-            "u_em": contact.get("emailaddress1"),
-            "u_mb": contact.get("mobilephone"),
-            "telephone1": contact.get("telephone1"),
-            "Created On": contact.get("createdon"),
-            "Modified On": contact.get("modifiedon"),
-            "new_contacttype": contact.get("new_contacttype"),
-            "_accountid_value": accountid_value,
-            "_parentcustomerid_value": parentcustomerid_value,
-            "jobtitle": contact.get("jobtitle"),
-            "u_fn": contact.get("firstname"),
-            "u_ln": contact.get("lastname"),
-            "address1_city": contact.get("address1_city"),
-            "address1_line1": contact.get("address1_line1"),
-            "address1_line2": contact.get("address1_line2"),
-            "address1_line3": contact.get("address1_line3"),
-            "address1_postalcode": contact.get("address1_postalcode"),
-            "donotemail": contact.get("donotemail"),
-            "donotphone": contact.get("donotphone"),
-            "new_afiupliftemail": contact.get("new_afiupliftemail"),
-            "new_underbridgevanmountemail": contact.get("new_underbridgevanmountemail"),
-            "new_rapidemail": contact.get("new_rapidemail"),
-            "new_rentalsspecialoffers": contact.get("new_rentalsspecialoffers"),
-            "new_resaleemail": contact.get("new_resaleemail"),
-            "new_trackemail": contact.get("new_trackemail"),
-            "new_truckemail": contact.get("new_truckemail"),
-            "new_utnemail": contact.get("new_utnemail"),
-            "new_hoistsemail": contact.get("new_hoistsemail"),
-            "data8_tpsstatus": contact.get("data8_tpsstatus"),
-            "new_lastmewpscall": contact.get("new_lastmewpscall"),
-            "new_lastmewpscallwith": contact.get("new_lastmewpscallwith"),
-            "new_lastemailed": contact.get("new_lastemailed"),
-            "new_lastemailedby": contact.get("new_lastemailedby"),
-            "new_lastcalled": contact.get("new_lastcalled"),
-            "new_lastcalledby": contact.get("new_lastcalledby"),
-            "new_registerforupliftonline": contact.get("new_registerforupliftonline"),
-            "preferredcontactmethodcode": contact.get("preferredcontactmethodcode"),
+
+#         attributes= {
+#             # "u_n": contact.get("fullname"),
+#             "u_em": contact.get("emailaddress1"),
+#             "u_mb": contact.get("mobilephone"),
+#             "telephone1": contact.get("telephone1"),
+#             "Created On": contact.get("createdon"),
+#             "Modified On": contact.get("modifiedon"),
+#             "new_contacttype": contact.get("new_contacttype"),
+#             "_accountid_value": accountid_value,
+#             "_parentcustomerid_value": parentcustomerid_value,
+#             "jobtitle": contact.get("jobtitle"),
+#             "u_fn": contact.get("firstname"),
+#             "u_ln": contact.get("lastname"),
+#             "address1_city": contact.get("address1_city"),
+#             "address1_line1": contact.get("address1_line1"),
+#             "address1_line2": contact.get("address1_line2"),
+#             "address1_line3": contact.get("address1_line3"),
+#             "address1_postalcode": contact.get("address1_postalcode"),
+#             "donotemail": contact.get("donotemail"),
+#             "donotphone": contact.get("donotphone"),
+#             "new_afiupliftemail": contact.get("new_afiupliftemail"),
+#             "new_underbridgevanmountemail": contact.get("new_underbridgevanmountemail"),
+#             "new_rapidemail": contact.get("new_rapidemail"),
+#             "new_rentalsspecialoffers": contact.get("new_rentalsspecialoffers"),
+#             "new_resaleemail": contact.get("new_resaleemail"),
+#             "new_trackemail": contact.get("new_trackemail"),
+#             "new_truckemail": contact.get("new_truckemail"),
+#             "new_utnemail": contact.get("new_utnemail"),
+#             "new_hoistsemail": contact.get("new_hoistsemail"),
+#             "data8_tpsstatus": contact.get("data8_tpsstatus"),
+#             "new_lastmewpscall": contact.get("new_lastmewpscall"),
+#             "new_lastmewpscallwith": contact.get("new_lastmewpscallwith"),
+#             "new_lastemailed": contact.get("new_lastemailed"),
+#             "new_lastemailedby": contact.get("new_lastemailedby"),
+#             "new_lastcalled": contact.get("new_lastcalled"),
+#             "new_lastcalledby": contact.get("new_lastcalledby"),
+#             "new_registerforupliftonline": contact.get("new_registerforupliftonline"),
+#             "preferredcontactmethodcode": contact.get("preferredcontactmethodcode"),
+#         }
+#         print("printing attriutes")
+#         # attributes['u_em']="jhon@example.com"
+#         print(attributes)
+#         customer_id=attributes.get("u_em")
+#         print(customer_id)
+#         final_payload={
+#             "type": "transition",
+#             "elements": [
+#                 {
+#                     "type": "customer",
+#                     "customer_id": customer_id,
+#                     "attributes": attributes,
+#                 },
+#                 {
+#                     "type": "event",
+#                     "customer_id": customer_id,
+#                     "actions": []  # Empty actions array as per your example
+#                 },
+#             ],
+#         }
+#         print("printing final payload")
+#         print(final_payload)
+        
+#         return final_payload
+    
+
+#     except Exception as e:
+#         error_message=f"error in map_contact_to_moengage in contacts:{str(e)}"
+#         log_error(S3_BUCKET_NAME, error_message)
+#         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+def map_contact_to_moengage(contact):
+    print("entered map function")
+    try:
+        # Extract parent account details
+        parent_contact = contact.get("parentcustomerid_account") 
+        accountid_value = parent_contact.get("accountnumber", "No Account Number") if parent_contact else None
+        parentcustomerid_value = parent_contact.get("name", "No Account Name") if parent_contact else None
+        primary_account_value = parent_contact.get("_new_primaryhirecontact_value", "") if parent_contact else None
+        primary_training_value = parent_contact.get("_new_primarytrainingcontact_value", "") if parent_contact else None
+        
+        attributes = {
+            "u_em": contact.get("emailaddress1", "") or "",
+            "u_mb": contact.get("mobilephone", "") or "",
+            "contact_telephone1": contact.get("telephone1", "") or "",
+            "contact_Created On": contact.get("createdon", "") or "",
+            "contact_Modified On": contact.get("modifiedon", "") or "",
+            "contact_new_contacttype": contact.get("new_contacttype", "") or "",
+            "contact__accountid_value": accountid_value or "",
+            "contact__parentcustomerid_value": parentcustomerid_value or "",
+            "contact_jobtitle": contact.get("jobtitle", "") or "",
+            "contact_u_fn": contact.get("firstname", "") or "",
+            "contact_u_ln": contact.get("lastname", "") or "",
+            "contact_address1_city": contact.get("address1_city", "") or "",
+            "contact_address1_line1": contact.get("address1_line1", "") or "",
+            "contact_address1_line2": contact.get("address1_line2", "") or "",
+            "contact_address1_line3": contact.get("address1_line3", "") or "",
+            "contact_address1_postalcode": contact.get("address1_postalcode", "") or "",
+            "contact_donotemail": contact.get("donotemail", "") or "",
+            "contact_donotphone": contact.get("donotphone", "") or "",
+            "contact_new_afiupliftemail": contact.get("new_afiupliftemail", "") or "",
+            "contact_new_underbridgevanmountemail": contact.get("new_underbridgevanmountemail", "") or "",
+            "contact_new_rapidemail": contact.get("new_rapidemail", "") or "",
+            "contact_new_rentalsspecialoffers": contact.get("new_rentalsspecialoffers", "") or "",
+            "contact_new_resaleemail": contact.get("new_resaleemail", "") or "",
+            "contact_new_trackemail": contact.get("new_trackemail", "") or "",
+            "contact_new_truckemail": contact.get("new_truckemail", "") or "",
+            "contact_new_utnemail": contact.get("new_utnemail", "") or "",
+            "contact_new_hoistsemail": contact.get("new_hoistsemail", "") or "",
+            "contact_data8_tpsstatus": contact.get("data8_tpsstatus", "") or "",
+            "contact_new_lastmewpscall": contact.get("new_lastmewpscall", "") or "",
+            "contact_new_lastmewpscallwith": contact.get("new_lastmewpscallwith", "") or "",
+            "contact_new_lastemailed": contact.get("new_lastemailed", "") or "",
+            "contact_new_lastemailedby": contact.get("new_lastemailedby", "") or "",
+            "contact_new_lastcalled": contact.get("new_lastcalled", "") or "",
+            "contact_new_lastcalledby": contact.get("new_lastcalledby", "") or "",
+            "contact_new_registerforupliftonline": contact.get("new_registerforupliftonline", "") or "",
+            "contact_preferredcontactmethodcode": contact.get("preferredcontactmethodcode", "") or "",
         }
-        print("printing attriutes")
-        # attributes['u_em']="jhon@example.com"
+
+        # attributes = {
+        #     "u_em": contact.get("emailaddress1"),
+        #     "u_mb": contact.get("mobilephone"),
+        #     "telephone1": contact.get("telephone1"),
+        #     "Created On": contact.get("createdon"),
+        #     "Modified On": contact.get("modifiedon"),
+        #     "new_contacttype": contact.get("new_contacttype"),
+        #     "_accountid_value": accountid_value,
+        #     "_parentcustomerid_value": parentcustomerid_value,
+        #     "jobtitle": contact.get("jobtitle"),
+        #     "u_fn": contact.get("firstname"),
+        #     "u_ln": contact.get("lastname"),
+        #     "address1_city": contact.get("address1_city"),
+        #     "address1_line1": contact.get("address1_line1"),
+        #     "address1_line2": contact.get("address1_line2"),
+        #     "address1_line3": contact.get("address1_line3"),
+        #     "address1_postalcode": contact.get("address1_postalcode"),
+        #     "donotemail": contact.get("donotemail"),
+        #     "donotphone": contact.get("donotphone"),
+        #     "new_afiupliftemail": contact.get("new_afiupliftemail"),
+        #     "new_underbridgevanmountemail": contact.get("new_underbridgevanmountemail"),
+        #     "new_rapidemail": contact.get("new_rapidemail"),
+        #     "new_rentalsspecialoffers": contact.get("new_rentalsspecialoffers"),
+        #     "new_resaleemail": contact.get("new_resaleemail"),
+        #     "new_trackemail": contact.get("new_trackemail"),
+        #     "new_truckemail": contact.get("new_truckemail"),
+        #     "new_utnemail": contact.get("new_utnemail"),
+        #     "new_hoistsemail": contact.get("new_hoistsemail"),
+        #     "data8_tpsstatus": contact.get("data8_tpsstatus"),
+        #     "new_lastmewpscall": contact.get("new_lastmewpscall"),
+        #     "new_lastmewpscallwith": contact.get("new_lastmewpscallwith"),
+        #     "new_lastemailed": contact.get("new_lastemailed"),
+        #     "new_lastemailedby": contact.get("new_lastemailedby"),
+        #     "new_lastcalled": contact.get("new_lastcalled"),
+        #     "new_lastcalledby": contact.get("new_lastcalledby"),
+        #     "new_registerforupliftonline": contact.get("new_registerforupliftonline"),
+        #     "preferredcontactmethodcode": contact.get("preferredcontactmethodcode"),
+        # }
+
+        # Merge parent account details into the attributes mapping
+        if parent_contact:
+            attributes.update({
+                "Account Email Address":parent_contact.get("emailaddress1", "") or "",
+                "Account Number": parent_contact.get("accountnumber", "") or "",
+                "Account_Mobile Number":parent_contact.get("mobilephone", "") or "",
+                "account_Account Name": parent_contact.get("name", "") or "",
+                "account_Created On": parent_contact.get("createdon", "") or "",
+                "account_Modified On": parent_contact.get("modifiedon", "") or "",
+                "account_new_afiUpliftemail": parent_contact.get("new_afiupliftemail", "") or "",
+                "account_new_underbridgevanmountemail": parent_contact.get("new_underbridgevanmountemail", "") or "",
+                "account_Rapid Email": parent_contact.get("new_rapidemail", "") or "",
+                "account_Rentals Special Offers": parent_contact.get("new_rentalsspecialoffers", "") or "",
+                "account_Resale Email": parent_contact.get("new_resaleemail", "") or "",
+                "account_Track Email": parent_contact.get("new_trackemail", "") or "",
+                "account_Truck Email": parent_contact.get("new_truckemail", "") or "",
+                "account_UTN Email": parent_contact.get("new_utnemail", "") or "",
+                "account_Hoists Email": parent_contact.get("new_hoistsemail", "") or "",
+                "account_address1_city": parent_contact.get("address1_city", "") or "",
+                "account_SIC Code": parent_contact.get("sic", "") or "",
+                "account_Company Registration No": parent_contact.get("new_registration_no", "") or "",
+                "account_Primary Hire Contact": primary_account_value or "",
+                "account_Last Invoice Date": parent_contact.get("new_lastinvoicedate", "") or "",
+                "account_Last Training Date": parent_contact.get("new_lasttrainingdate", "") or "",
+                "account_Group AM": parent_contact.get("new_groupaccountmanager", "") or "",
+                "account_Rental AM": parent_contact.get("new_rentalam", "") or "",
+                "account_donotphone": parent_contact.get("donotphone", "") or "",
+                "account_donotemail": parent_contact.get("donotemail", "") or "",
+                "account_Primary Training Contact": primary_training_value or "",
+                "account_address1_line1": parent_contact.get("address1_line1", "") or "",
+                "account_address1_line2": parent_contact.get("address1_line2", "") or "",
+                "account_address1_line3": parent_contact.get("address1_line3", "") or "",
+                "account_Credit Limit": parent_contact.get("creditlimit", "") or "",
+                "account_2 Years Ago Spent": parent_contact.get("new_twoyearsagorevenue", "") or "",
+                "account_TPS Status": parent_contact.get("data8_tpsstatus", "") or "",
+                "account_Credit Position": parent_contact.get("new_creditposition", "") or "",
+                "account_Last Year Spent": parent_contact.get("new_lastyearrevenue", "") or "",
+                "account_Account Status": parent_contact.get("statuscode", "") or "",
+                "account_Postal Code": parent_contact.get("address1_postalcode", "") or "",
+                "account_new_accountopened": parent_contact.get("new_accountopened", "") or "",
+                "account_YTD": parent_contact.get("new_ytd", "") or "",
+                "account_data8_tpsstatus": parent_contact.get("data8_tpsstatus", "") or "",
+            })
+
+
+        
         print(attributes)
-        customer_id=attributes.get("u_em")
-        print(customer_id)
-        final_payload={
+        # Use email as the customer_id (unique identifier)
+        customer_id = attributes.get("u_em")
+
+        # Final payload structure
+        final_payload = {
             "type": "transition",
             "elements": [
                 {
@@ -228,16 +393,14 @@ def map_contact_to_moengage(contact):
                 },
             ],
         }
-        print("printing final payload")
-        print(final_payload)
-        
+
         return final_payload
-    
 
     except Exception as e:
-        error_message=f"error in map_contact_to_moengage in contacts:{str(e)}"
+        error_message = f"error in map_contact_to_moengage in contacts: {str(e)}"
         log_error(S3_BUCKET_NAME, error_message)
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
 
 
     
@@ -340,12 +503,10 @@ async def send_to_SQS(failed_payload: dict):
     queue_url = "https://sqs.eu-north-1.amazonaws.com/062314917923/TestRevanth"  
 
 
-#     payload= {'type': 'transition', 'elements': [{'type': 'customer', 'customer_id': 'derek@derekmcaleese.com', 'attributes': {'u_em': 'derek@derekmcaleese.com', 'u_mb': None, 
-# 'telephone1': '01233 638996', 'Created On': '2019-07-06T06:53:46Z', 'Modified On': None, 'new_contacttype': None, '_accountid_value': None, '_parentcustomerid_value': 'DESTRA ENGINEERING LIMITED', 'jobtitle': 'Managing Director', 'u_fn': 'Derek', 'u_ln': 'Rawlings', 'address1_city': 'ASHFORD', 'address1_line1': 'Unit 5 St Georges Bus Ctr', 'address1_line2': 'Brunswick Rd Cobbs Wood', 'address1_line3': None, 'address1_postalcode': 'TN23 1EL', 'donotemail': False, 'donotphone': False, 'new_afiupliftemail': True, 'new_underbridgevanmountemail': None, 'new_rapidemail': True, 'new_rentalsspecialoffers': None, 'new_resaleemail': True, 'new_trackemail': None, 'new_truckemail': None, 'new_utnemail': True, 'new_hoistsemail': None, 'data8_tpsstatus': None, 'new_lastmewpscall': None, 'new_lastmewpscallwith': None, 
-# 'new_lastemailed': None, 'new_lastemailedby': None, 'new_lastcalled': None, 'new_lastcalledby': None, 'new_registerforupliftonline': None, 'preferredcontactmethodcode': 1}}, {'type': 'event', 'customer_id': 'derek@derekmcaleese.com', 'actions': []}]}
-#     failed_payload=payload
+    payload= {'type': 'transition'}
+    failed_payload=payload
 
-
+    
     try:
         # Serialize and send the message to the SQS queue
         response = sqs.send_message(
