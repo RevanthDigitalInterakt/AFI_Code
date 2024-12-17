@@ -160,12 +160,15 @@ async def map_lead_to_moengage(lead):
             option["value"]: option["label"]
             for option in new_leadtype_metadata_response["options"]
         }
+        print("new lead type")
+        print(new_leadtype_options)
 
         statuscode_metadata_response = await fetch_statuscode_metadata("statuscode")
         statuscode_options = {
             option["value"]: option["label"]
             for option in statuscode_metadata_response["options"]
         }
+        print(statuscode_options)
 
         leadsourcecode_metadata_response = await fetch_leadsourcecode_metadata("leadsourcecode")
         leadsourcecode_options = {
@@ -174,8 +177,25 @@ async def map_lead_to_moengage(lead):
         }
 
         # Extract the fields from the lead and map them to the corresponding labels using metadata
-        lead_type = new_leadtype_options.get(lead.get("new_leadtype"), "Unknown Lead Type")
+        # lead_type = new_leadtype_options.get(lead.get("new_leadtype"), "Unknown Lead Type")
+        print("lead values here")
+        lead_type_value = lead.get("new_leadtype", None)
+        print(lead_type_value)
+        lead_type = new_leadtype_options.get(lead_type_value, "Unknown Lead Type")
+        print(lead_type)
+
+
+
+        
         lead_source = leadsourcecode_options.get(lead.get("leadsourcecode"), "Unknown Lead Source")
+        print(lead_source)
+        lead_status = statuscode_options.get(lead.get("statuscode"), "Unknown Status")
+        print(lead_status)
+
+
+
+
+
         lead_status = statuscode_options.get(lead.get("statuscode"), "Unknown Status")
         print("calling parent account and contact id")
         parent_contact=lead.get("parentcontactid")
