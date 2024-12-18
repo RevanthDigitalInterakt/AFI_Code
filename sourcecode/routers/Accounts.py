@@ -227,7 +227,6 @@ def map_account_to_moengage(account):
                 {
                     "type": "event",
                     "customer_id": customer_id,
-                    "device_id": "96bd03b6-defc-4203-83d3-dc1c73080232",  # Replace with actual device ID if available
                     "actions": []  # Empty actions array as per your example
                 },
             ],
