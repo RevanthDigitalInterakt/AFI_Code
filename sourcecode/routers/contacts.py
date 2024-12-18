@@ -136,7 +136,7 @@ async def fetch_contacts():
 
         query="emailaddress1,_accountid_value,_parentcustomerid_value,modifiedon,telephone1,mobilephone,jobtitle,firstname,address1_city,lastname,address1_line1,address1_line2,address1_line3,address1_postalcode,donotemail,donotphone,new_afiupliftemail,new_underbridgevanmountemail,new_rapidemail,new_rentalsspecialoffers,new_resaleemail,new_trackemail,new_truckemail,new_utnemail,new_hoistsemail,data8_tpsstatus,new_lastmewpscall,new_lastmewpscallwith,new_lastemailed,new_lastemailedby,new_lastcalled,new_lastcalledby,new_registerforupliftonline,createdon,preferredcontactmethodcode"       
         query2="$expand=parentcustomerid_account($select=accountnumber,name,new_accountopened,creditlimit,new_creditposition,new_ytdrevenue,new_lastyearrevenue,new_twoyearsagorevenue,data8_tpsstatus,address1_line1,address1_line2,address1_line3,address1_city,address1_postalcode,sic,new_registration_no,_new_primaryhirecontact_value,_new_primarytrainingcontact_value,new_lastinvoicedate,new_lasttrainingdate,new_groupaccountmanager,new_rentalam,donotemail,donotphone,new_afiupliftemail,new_underbridgevanmountemail,new_rapidemail,new_rentalsspecialoffers,new_resaleemail,new_trackemail,new_truckemail,new_utnemail,new_hoistsemail,emailaddress1;$expand=new_PrimaryHireContact($select=emailaddress1),new_PrimaryTrainingContact($select=emailaddress1))"
-        period = (datetime.utcnow() - timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+        period = (datetime.utcnow() - timedelta(hours=10)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
 
         contacts_url = f"{CRM_API_URL}/api/data/v9.0/contacts?$filter=(createdon ge {period} or modifiedon ge {period})&$select={query}&{query2}"
         all_contacts = []
@@ -259,8 +259,8 @@ def map_contact_to_moengage(contact):
             "contact__accountid_value": accountid_value or "",
             "contact__parentcustomerid_value": parentcustomerid_value or "",
             "contact_jobtitle": contact.get("jobtitle", "") or "",
-            "contact_u_fn": contact.get("firstname", "") or "",
-            "contact_u_ln": contact.get("lastname", "") or "",
+            "u_fn": contact.get("firstname", "") or "",
+            "u_ln": contact.get("lastname", "") or "",
             "contact_address1_city": contact.get("address1_city", "") or "",
             "contact_address1_line1": contact.get("address1_line1", "") or "",
             "contact_address1_line2": contact.get("address1_line2", "") or "",
