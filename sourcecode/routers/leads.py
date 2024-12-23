@@ -10,7 +10,7 @@ router = APIRouter()
 # Initialize the AWS Secrets Manager client
 secrets_client = boto3.client("secretsmanager")
 
-S3_BUCKET_NAME = "apierrorlog"
+S3_BUCKET_NAME = "crmtomoe"
 
 def get_secret(secret_name: str):
     """Fetch secrets from AWS Secrets Manager."""
@@ -66,8 +66,6 @@ def log_error(bucketname:str,error_log:str,source:str ="leads",key_prefix:str ="
 
 
 def log_processedRecords(bucketname:str,log_records:str,source:str ="leads",key_prefix:str='processedRecords/'):
-    print(bucketname)
-    print(log_records)
 
     try:
         log_timestamp=f"{key_prefix}{source}_{datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')}_log.json"
@@ -105,7 +103,7 @@ async def fetch_leads():
         }
 
         # Get the current time and subtract one hour to get the time range
-        one_hour_ago = (datetime.utcnow() - timedelta(hours=4))
+        one_hour_ago = (datetime.utcnow() - timedelta(hours=1))
 
         # Format the DateTimeOffset correctly for CRM API (including UTC timezone)
         period = one_hour_ago.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'  # Exclude extra microseconds and add 'Z' for UTC
@@ -121,26 +119,33 @@ async def fetch_leads():
         all_leads = []
 
         # Fetch leads with pagination
-        while leads_url:
-            response = requests.get(leads_url, headers=headers)
-            
-            if response.status_code == 200:
-                data = response.json()
-                all_leads.extend(data.get("value", []))  # Add the leads to the list
-
-                leads_url = data.get("@odata.nextLink")
+        async with httpx.AsyncClient() as client:
+            while leads_url:
+                response = requests.get(leads_url, headers=headers)
                 
-          
-                if leads_url:
-                    print(f"Fetching more leads from {leads_url}")
-            else:
-           
-                error_message = f"Failed to fetch leads: {response.status_code} - {response.text}"
-                log_error(S3_BUCKET_NAME, error_message)
-                raise HTTPException(status_code=response.status_code, detail="Failed to fetch leads from CRM.")
-        
+                if response.status_code == 200:
+                    data = response.json()
+                    all_leads.extend(data.get("value", []))  # Add the leads to the list
+
+                    leads_url = data.get("@odata.nextLink")
+                    
+            
+                    if leads_url:
+                        print(f"Fetching more leads from {leads_url}")
+                else:
+            
+                    error_message = f"Failed to fetch leads: {response.status_code} - {response.text}"
+                    log_error(S3_BUCKET_NAME, error_message)
+                    raise HTTPException(status_code=response.status_code, detail="Failed to fetch leads from CRM.")
+            
         # Return the aggregated leads
         return {"leads": all_leads}
+    
+    except httpx.RequestError as e:
+        error_message=f"Error during HTTP Request :{str(e)}"
+        log_error(S3_BUCKET_NAME,error_message)
+        raise HTTPException(status_code=500,details="Error during HTTP request.")    
+    
     
     except Exception as e:
         error_message = f"Error during fetch-leads: {str(e)}"
@@ -150,7 +155,6 @@ async def fetch_leads():
 
 async def map_lead_to_moengage(lead):
 
-    print(lead)
     
 
     try:
@@ -176,8 +180,7 @@ async def map_lead_to_moengage(lead):
             for option in leadsourcecode_metadata_response["options"]
         }
 
-        # Extract the fields from the lead and map them to the corresponding labels using metadata
-        # lead_type = new_leadtype_options.get(lead.get("new_leadtype"), "Unknown Lead Type")
+      
         print("lead values here")
         lead_type_value = lead.get("new_leadtype", None)
         print(lead_type_value)
@@ -217,30 +220,6 @@ async def map_lead_to_moengage(lead):
         print("check email here\n")
         print(internal_email_address)
 
-        # payload = {
-        #     "leadid": lead.get("leadid"),
-        #     "u_em": lead.get("emailaddress1"),  
-        #     "u_mb": lead.get("mobilephone"),  
-        #     "telephone1": lead.get("telephone1"), 
-        #     "Company Name": lead.get("companyname" ),  # Company name
-        #     "Lead Type": lead_type,  # Use the mapped value
-        #     "Lead Source Code": lead_source,  # Use the mapped value
-        #     "Status Code": lead_status,  # Use the mapped value
-        #     "new_utm_campaign": lead.get("new_utm_campaign" ),  # UTM Campaign
-        #     "new_utm_campaignname": lead.get("new_utm_campaignname" ),  # UTM Campaign Name
-        #     "new_utm_content": lead.get("new_utm_content" ),  # UTM Content
-        #     "new_utm_source": lead.get("new_utm_source" ),  # UTM Source
-        #     "new_utm_medium": lead.get("new_utm_medium" ),  # UTM Medium
-        #     "new_utm_term": lead.get("new_utm_term" ),  # UTM Term
-        #     "new_utm_keyword": lead.get("new_utm_keyword" ),  # UTM Keyword
-        #     "Created On": lead.get("createdon" ),  # Created date
-        #     "Owner": internal_email_address,
-        #     "Topic": lead.get("subject"),  
-        #     "Modified On": lead.get("modifiedon"),
-        #     "Parent Contact Email": parent_contact_email,  # Parent contact email
-        #     "Parent Account Number": parent_account_number  # Parent account number  
-
-        # }
 
         payload = {
                 "leadid": lead.get("leadid", "") or "",
@@ -359,12 +338,11 @@ async def send_to_moengage(leads):
 
     
 
-@router.post("/SQS")  # Fixed route path
-async def send_to_SQS(failed_payload: dict):  # Explicitly type `failed_payload` as a dictionary
+@router.post("/SQS")  
+async def send_to_SQS(failed_payload: dict):  
     # Create a new SQS client
-    sqs = boto3.client('sqs', region_name="eu-north-1")  # Specify the region explicitly if required
-    queue_url = "https://sqs.eu-north-1.amazonaws.com/062314917923/TestRevanth"  # Replace with your SQS URL
-
+    sqs = boto3.client('sqs', region_name="eu-north-1")  
+    queue_url = "https://sqs.eu-north-1.amazonaws.com/062314917923/Payload_Queue"  
     try:
         # Serialize and send the message to the SQS queue
         response = sqs.send_message(
@@ -378,7 +356,7 @@ async def send_to_SQS(failed_payload: dict):  # Explicitly type `failed_payload`
         error_message = f"Error sending payload to SQS: {str(e)}"
         log_error(S3_BUCKET_NAME, error_message)
         
-        # Raise HTTPException for FastAPI error response
+      
         raise HTTPException(status_code=500, detail=error_message)
 
 
@@ -615,7 +593,7 @@ async def fetch_email_from_lead(owner_id:str):
 @router.get("/retry")
 async def retry_failed_payloads_from_sqs():
     sqs = boto3.client('sqs')
-    queue_url = "https://sqs.eu-north-1.amazonaws.com/062314917923/TestRevanth"
+    queue_url = "https://sqs.eu-north-1.amazonaws.com/062314917923/Payload_Queue"
 
     try:
         while True:

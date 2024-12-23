@@ -10,7 +10,7 @@ handler = Mangum(app)
 
 # Initialize the S3 client
 s3 = boto3.client('s3')
-S3_BUCKET_NAME = 'apierrorlog'
+S3_BUCKET_NAME = 'crmtomoe'
 DAILY_COUNT_FOLDER = 'DailyCount/'  # New folder for daily counts
 
 @app.get("/")
