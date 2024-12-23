@@ -10,7 +10,7 @@ router = APIRouter()
 
 # Initialize Boto3 client for Secrets Manager
 secrets_client = boto3.client('secretsmanager')
-S3_BUCKET_NAME = "apierrorlog"
+S3_BUCKET_NAME = "crmtomoe"
 
 def get_secret(secret_name: str):
     """Retrieve secrets from AWS Secrets Manager."""
@@ -95,19 +95,26 @@ async def fetch_accounts():
         accounts_url = f"{CRM_API_URL}/api/data/v9.0/accounts?$filter=(createdon ge {period} or modifiedon ge {period})&$select={query}&$expand=new_PrimaryHireContact($select=emailaddress1),new_PrimaryTrainingContact($select=emailaddress1)"
         all_accounts = []
 
-        while accounts_url:
-            response = requests.get(accounts_url, headers=headers)
-            if response.status_code == 200:
-                data = response.json()
-                all_accounts.extend(data.get("value", []))
-                accounts_url = data.get("@odata.nextLink")
-            else:
-                # error_message = f"Failed to fetch accounts: {response.status_code} - {response.text}"
-                error_message=f"failed to fetch accounts:{response.status_code} - {response.text}"
-                log_error(S3_BUCKET_NAME, error_message)
-                raise HTTPException(status_code=response.status_code, detail="Failed to fetch accounts from CRM.")
+        async with httpx.AsyncClient() as client:
+            while accounts_url:
+                response = requests.get(accounts_url, headers=headers)
+                if response.status_code == 200:
+                    data = response.json()
+                    all_accounts.extend(data.get("value", []))
+                    accounts_url = data.get("@odata.nextLink")
+                else:
+                    # error_message = f"Failed to fetch accounts: {response.status_code} - {response.text}"
+                    error_message=f"failed to fetch accounts:{response.status_code} - {response.text}"
+                    log_error(S3_BUCKET_NAME, error_message)
+                    raise HTTPException(status_code=response.status_code, detail="Failed to fetch accounts from CRM.")
 
-        return {"accounts": all_accounts}
+            return {"accounts": all_accounts}
+        
+    except httpx.RequestError as e:
+        error_message=f"Error during HTTP Request:{str(e)}"
+        log_error(S3_BUCKET_NAME,error_message)
+        raise HTTPException(status_code=500,detail="Error during HTTP Request."
+        )
 
     except Exception as e:
         error_message = f"Error during fetch-Accounts: {str(e)}"
@@ -132,7 +139,7 @@ def map_account_to_moengage(account):
             "u_em": account.get("emailaddress1"),
             "u_mb": account.get("telephone1"),
             "Account Number": account.get("accountnumber", "") or "",
-            "account_Account Name": account.get("name", "") or "",
+            "Account Name": account.get("name", "") or "",
             "account_Created On": account.get("createdon", "") or "",
             "account_Modified On": account.get("modifiedon", "") or "",
             "account_new_afiUpliftemail": account.get("new_afiupliftemail", "") or "",
@@ -169,48 +176,7 @@ def map_account_to_moengage(account):
             "account_YTD": account.get("new_ytd", "") or "",
             "account_data8_tpsstatus": account.get("data8_tpsstatus", "") or "",
         }
-        # attributes= {
-        #     "Account Number": account.get("accountnumber"),
-        #     "u_em": account.get("emailaddress1"),
-        #     "u_mb": account.get("telephone1"),
-        #     "Account Name": account.get("name"),
-        #     "Created On": account.get("createdon"),
-        #     "Modified On": account.get("modifiedon"),
-        #     "new_afiUpliftemail": account.get("new_afiupliftemail"),
-        #     "new_underbridgevanmountemail": account.get("new_underbridgevanmountemail"),
-        #     "Rapid Email": account.get("new_rapidemail"),
-        #     "Rentals Special Offers": account.get("new_rentalsspecialoffers"),
-        #     "Rsale Email": account.get("new_resaleemail"),
-        #     "Track Email": account.get("new_trackemail"),
-        #     "Truck Email": account.get("new_truckemail"),
-        #     "UTN Email": account.get("new_utnemail"),
-        #     "Hoists Email": account.get("new_hoistsemail"),
-        #     "address1_city": account.get("address1_city"),
-        #     "SIC Code": account.get("sic"),
-        #     "Company Registration No": account.get("new_registration_no"),
-        #     "Primary Hire Contact": account.get("_new_primaryhirecontact_value"),
-        #     "Primary Hire Contact": primary_account_value,
-        #     "Last Invoice Date": account.get("new_lastinvoicedate"),
-        #     "Last Training Date": account.get("new_lasttrainingdate"),
-        #     "Group AM": account.get("new_groupaccountmanager"),
-        #     "Rental AM": account.get("new_rentalam"),
-        #     "donotphone": account.get("donotphone"),
-        #     "donotemail": account.get("donotemail"),
-        #     "Primary Training Contact": account.get("_new_primarytrainingcontact_value"),
-        #     "Primary Training Contact": primary_training_value,
-        #     "address1_line1": account.get("address1_line1"),
-        #     "address1_line2": account.get("address1_line2"),
-        #     "address1_line3": account.get("address1_line3"),
-        #     "Credit Limit": account.get("creditlimit"),
-        #     "2 Years Ago Spent": account.get("new_twoyearsagorevenue"),
-        #     "TPS Status": account.get("data8_tpsstatus"),
-        #     "Credit Position": account.get("new_creditposition"),
-        #     "Last Year Spent": account.get("new_lastyearrevenue"),
-        #     "Account Status": account.get("statuscode"),
-        #     "Postal Code": account.get("address1_postalcode"),
-        #     "new_accountopened": account.get("new_accountopened"),
-        #     "YTD": account.get("new_ytdrevenue"),
-        # }
+       
 
 
 
@@ -352,16 +318,10 @@ async def send_to_SQS(failed_payload: dict):  # Explicitly type `failed_payload`
    
     # Create a new SQS client
     sqs = boto3.client('sqs', region_name="eu-north-1")  # Specify the region explicitly if required
-    queue_url = "https://sqs.eu-north-1.amazonaws.com/062314917923/TestRevanth" 
+    queue_url = "https://sqs.eu-north-1.amazonaws.com/062314917923/Payload_Queue" 
 
 
 
-#     payload= {'type': 'transition', 'elements': [{'type': 'customer', 'customer_id': 'derek@derekmcaleese.com', 'attributes': {'u_em': 'derek@derekmcaleese.com', 'u_mb': None, 
-# 'telephone1': '01233 638996', 'Created On': '2019-07-06T06:53:46Z', 'Modified On': None, 'new_contacttype': None, '_accountid_value': None, '_parentcustomerid_value': 'DESTRA ENGINEERING LIMITED', 'jobtitle': 'Managing Director', 'u_fn': 'Derek', 'u_ln': 'Rawlings', 'address1_city': 'ASHFORD', 'address1_line1': 'Unit 5 St Georges Bus Ctr', 'address1_line2': 'Brunswick Rd Cobbs Wood', 'address1_line3': None, 'address1_postalcode': 'TN23 1EL', 'donotemail': False, 'donotphone': False, 'new_afiupliftemail': True, 'new_underbridgevanmountemail': None, 'new_rapidemail': True, 'new_rentalsspecialoffers': None, 'new_resaleemail': True, 'new_trackemail': None, 'new_truckemail': None, 'new_utnemail': True, 'new_hoistsemail': None, 'data8_tpsstatus': None, 'new_lastmewpscall': None, 'new_lastmewpscallwith': None, 
-# 'new_lastemailed': None, 'new_lastemailedby': None, 'new_lastcalled': None, 'new_lastcalledby': None, 'new_registerforupliftonline': None, 'preferredcontactmethodcode': 1}}, {'type': 'event', 'customer_id': 'derek@derekmcaleese.com', 'actions': []}]}
-#     failed_payload=payload
-
-    # failed_payload={"invalid":"payload"}
 
     try:
         # Serialize and send the message to the SQS queue
@@ -381,66 +341,5 @@ async def send_to_SQS(failed_payload: dict):  # Explicitly type `failed_payload`
 
 
 
-# @router.get("/retry-accounts")
-# async def retry_failed_payloads_from_sqs():
-#     sqs = boto3.client('sqs')
-#     queue_url = "https://sqs.eu-north-1.amazonaws.com/062314917923/TestRevanth"
 
-#     try:
-#         while True:
-#             # Receive messages from SQS
-#             response = sqs.receive_message(
-#                 QueueUrl=queue_url,
-#                 MaxNumberOfMessages=10,
-#                 WaitTimeSeconds=10
-#             )
 
-#             # If no messages are found, break the loop
-#             if 'Messages' not in response:
-#                 print("No more messages to process.")
-#                 break
-
-#             for message in response['Messages']:
-#                 try:
-#                     # Inspect the raw body before parsing
-#                     raw_body = message['Body']
-#                     print(f"Raw message body: {raw_body}")
-
-#                     # Attempt to parse the message body
-#                     try:
-#                         payload = json.loads(raw_body)
-#                     except json.JSONDecodeError as e:
-#                         print(f"Invalid JSON in message body: {raw_body}, Error: {str(e)}")
-#                         # Optionally, log the error and skip this message
-#                         continue
-
-#                     # Retry sending the payload to MoEngage
-#                     headers = {
-#                         'Authorization': token_moe,
-#                         'Content-Type': 'application/json',
-#                         'MOE-APPKEY': '6978DCU8W19J0XQOKS7NEE1C_DEBUG'
-#                     }
-#                     response = requests.post(MOENGAGE_API_URL, json=payload, headers=headers)
-
-#                     if response.status_code == 200:
-#                         print(f"Successfully retried payload: {payload}")
-#                         return {"your finished"}
-#                     else:
-#                         print(f"Failed to retry payload: {payload}, Error: {response.text}")
-#                         raise Exception(response.text)
-
-#                     # Delete the message from the queue upon success
-#                     sqs.delete_message(
-#                         QueueUrl=queue_url,
-#                         ReceiptHandle=message['ReceiptHandle']
-#                     )
-#                     print("Message deleted from SQS.")
-
-#                 except Exception as e:
-#                     print(f"Error processing message: {str(e)}")
-#                     # Optionally, log the error and leave the message in SQS for another retry
-
-#     except Exception as e:
-#         error_message = f"Error while retrying failed payloads from SQS: {str(e)}"
-#         log_error(S3_BUCKET_NAME, error_message)
-#         raise HTTPException(status_code=500, detail=error_message)
