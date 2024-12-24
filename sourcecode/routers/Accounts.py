@@ -242,7 +242,7 @@ async def send_to_moengage(accounts):
     headers = {
         'Authorization': token_moe,
         'Content-Type': 'application/json',
-        'MOE-APPKEY':'6978DCU8W19J0XQOKS7NEE1C_DEBUG'
+        'MOE-APPKEY':'6978DCU8W19J0XQOKS7NEE1C'
     }
 
     try:      

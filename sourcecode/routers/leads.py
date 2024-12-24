@@ -184,13 +184,13 @@ async def map_lead_to_moengage(lead):
         print("lead values here")
         lead_type_value = lead.get("new_leadtype", None)
         print(lead_type_value)
-        lead_type = new_leadtype_options.get(lead_type_value, "Unknown Lead Type")
+        lead_type = new_leadtype_options.get(lead_type_value, "")
         print(lead_type)
 
 
 
         
-        lead_source = leadsourcecode_options.get(lead.get("leadsourcecode"), "Unknown Lead Source")
+        lead_source = leadsourcecode_options.get(lead.get("leadsourcecode"), "")
         print(lead_source)
         lead_status = statuscode_options.get(lead.get("statuscode"), "Unknown Status")
         print(lead_status)
@@ -282,7 +282,7 @@ async def send_to_moengage(leads):
     headers = {
         'Authorization': token_moe,
         'Content-Type': 'application/json',
-        'MOE-APPKEY': '6978DCU8W19J0XQOKS7NEE1C_DEBUG'
+        'MOE-APPKEY': '6978DCU8W19J0XQOKS7NEE1C'
     }
 
     success_records = []
@@ -635,8 +635,9 @@ async def retry_failed_payloads_from_sqs():
                     headers = {
                         'Authorization': token_moe,
                         'Content-Type': 'application/json',
-                        'MOE-APPKEY': '6978DCU8W19J0XQOKS7NEE1C_DEBUG'
+                        'MOE-APPKEY': '6978DCU8W19J0XQOKS7NEE1C'
                     }
+                    
                     response = requests.post(MOENGAGE_API_URL, json=payload, headers=headers)
 
                     if response.status_code == 200:
