@@ -301,7 +301,7 @@ async def send_to_SQS(failed_payload: dict):  # Explicitly type `failed_payload`
     sqs = boto3.client('sqs', region_name="eu-north-1")  # Specify the region explicitly if required
     queue_url = "https://sqs.eu-north-1.amazonaws.com/062314917923/Payload_Queue" 
 
-
+    failed_payload={"invalid":"payload"}
 
 
     try:

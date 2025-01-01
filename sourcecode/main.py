@@ -1,6 +1,6 @@
 import json
 import boto3
-from datetime import datetime
+from datetime import datetime,timedelta
 from fastapi import FastAPI
 from sourcecode.routers import leads, Accounts, contacts
 from mangum import Mangum
@@ -18,60 +18,54 @@ async def root():
     return {"message": "Please Navigate to Swagger Docs to see end points. Hit /docs with local url"}
 
 def get_files_in_bucket(file_type):
-    """
-    Lists all files in the S3 bucket for a given type (leads, accounts, contacts).
     
-    Args:
-    - file_type (str): Type of file to filter ('leads', 'accounts', 'contacts')
-    
-    Returns:
-    - files (list): List of file keys matching the file type.
-    """
-    response = s3.list_objects_v2(Bucket=S3_BUCKET_NAME)
+    #Lists all files in the 'processedRecords' folder in the S3 bucket for a given type.
+   
+    response = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix="processedRecords/")
     if 'Contents' not in response:
-        print("No files found in the bucket.")
+        print("No files found in the 'processedRecords' folder.")
         return []
 
-    # Filter out files that match the file_type
+    # Filter files by type
     files = [file['Key'] for file in response['Contents'] if file_type in file['Key']]
     return files
 
+
 async def get_records_for_day(file_type: str, date_str: str):
-    """
-    Aggregates the total records, success, and failure counts for the given file type logs of a given day.
-    
-    Args:
-    - file_type (str): Type of file to filter ('leads', 'accounts', 'contacts')
-    - date_str (str): The date string in 'YYYY-MM-DD' format.
-    
-    Returns:
-    - total_records (int): The total records processed for the day from the specified file type.
-    - success_count (int): The total successful records for the day from the specified file type.
-    - fail_count (int): The total failed records for the day from the specified file type.
-    """
     total_records = 0
     success_count = 0
     fail_count = 0
 
-    # List all files of the given file type
     all_files = get_files_in_bucket(file_type)
     filtered_files = [file for file in all_files if date_str in file]
 
     if not filtered_files:
+        print(f"No files found for type {file_type} on date {date_str}")
         return {"total_records": total_records, "success_count": success_count, "fail_count": fail_count}
 
-    # Iterate through the filtered files
     for file_key in filtered_files:
-        # Fetch the file from S3
-        obj = s3.get_object(Bucket=S3_BUCKET_NAME, Key=file_key)
-        data = json.loads(obj['Body'].read().decode('utf-8'))
+        if not file_key.endswith(".json"):
+            print(f"File {file_key} is not a JSON file. Skipping.")
+            continue
 
-        # Process success and failed records from the file
+        obj = s3.get_object(Bucket=S3_BUCKET_NAME, Key=file_key)
+        body = obj['Body'].read()
+        
+        if not body.strip():  # Skip empty files
+            print(f"File {file_key} is empty. Skipping.")
+            continue
+        
+        try:
+            data = json.loads(body.decode('utf-8'))
+        except json.JSONDecodeError as e:
+            print(f"Invalid JSON in file {file_key}: {e}. Skipping.")
+            continue
+
         processed_count = data.get('success_count', 0)
+        failed_records = data.get('failed_records', [])
+
         total_records += processed_count
         success_count += processed_count
-
-        failed_records = data.get('failed_records', [])
         fail_count += len(failed_records)
 
     return {"total_records": total_records, "success_count": success_count, "fail_count": fail_count}
@@ -96,8 +90,8 @@ def save_daily_count(date_str, counts):
 # Example usage: Get the total records for leads, accounts, and contacts today
 @app.get("/Total_Records_Today")
 async def total_records_today():
-    date_today = datetime.utcnow().strftime('%Y-%m-%d')
-
+    # date_today = datetime.utcnow().strftime('%Y-%m-%d')
+    date_today=(datetime.utcnow() - timedelta(days=1)).strftime('%Y-%m-%d')
     # Process leads
     lead_data = await get_records_for_day('leads', date_today)
 

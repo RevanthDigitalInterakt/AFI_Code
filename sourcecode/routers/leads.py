@@ -520,74 +520,108 @@ async def fetch_leadsourcecode_metadata(attribute: str = Query("leadsourcecode",
 
 
 
+async def fetch_email_from_lead(owner_id: str):
+    """
+    Fetch the internal email address of a system user by their owner ID.
 
-async def fetch_email_from_lead(owner_id:str):
-    print("entered email fun")
+    Args:
+        owner_id (str): The system user's ID.
+
+    Returns:
+        str: The internal email address.
+    """
+    print("Entered email function")
 
     global global_token
     try:
-        # Get the token dynamically
+        # Use the global token dynamically
         token = global_token
-        
-        # Headers with the dynamic token
+
+        # Prepare headers with the token
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
 
-        # leads_url = (
-        #     f"{CRM_API_URL}/api/data/v9.0/leads"
-        #     "?$select={owner_id}"
-        #     "&$orderby=createdon desc"
-        # )
-
-        # print(leads_url)
-        # leads_response = requests.get(leads_url, headers=headers)
-        # # print("Leads Response:", leads_response.status_code, leads_response.text)  
-        # leads_response.raise_for_status()
-        
-        # leads_data = leads_response.json()
-        # if not leads_data.get("value"):
-        #     raise HTTPException(status_code=404, detail="No leads found.")
-        
-        # # Get the first _ownerid_value
-        # _ownerid_value = leads_data["value"][0].get("_ownerid_value")
-        # print("checking owner id in email function")
-        # print(_ownerid_value)
-        # if not _ownerid_value:
-        #     raise HTTPException(status_code=404, detail="_ownerid_value not found in the lead.")
-
-
+        # CRM API URL for fetching system user details
         system_user_url = (
             f"{CRM_API_URL}/api/data/v9.0/systemusers"
             f"?$filter=systemuserid eq {owner_id}"
-            "&$select=internalemailaddress,fullname"
+            "&$select=internalemailaddress"
         )
-        print(system_user_url)
-        system_user_response = requests.get(system_user_url, headers=headers)
-        # print("System User Response:", system_user_response.status_code, system_user_response.text) 
-        system_user_response.raise_for_status()
+        print(f"Fetching email from URL: {system_user_url}")
 
-        system_user_data = system_user_response.json()
-        print("printing email")
-        print(system_user_data)
-        if not system_user_data.get("value"):
-            raise HTTPException(status_code=404, detail="No system user found with the given _ownerid_value.")
+        # Make the API request
+        response = requests.get(system_user_url, headers=headers)
+        response.raise_for_status()
+
+        # Parse the response JSON
+        data = response.json()
+        print(f"Response data: {data}")
 
         # Extract the email address
-        internal_email_address = system_user_data["value"][0].get("internalemailaddress")
-       
-        if not internal_email_address:
-            raise HTTPException(status_code=404, detail="Internal email address not found.")
+        email = data.get("value", [{}])[0].get("internalemailaddress")
+        if not email:
+            raise HTTPException(status_code=404, detail="Email address not found.")
 
-        return {
-        
-            "internal_email_address": internal_email_address,
-        }
+        print(f"Email fetched: {email}")
+        return email
 
     except requests.RequestException as e:
-        print("Error:", str(e))  # Debugging line
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Request error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch email from CRM.")
+
+
+
+# async def fetch_email_from_lead(owner_id:str):
+#     print("entered email fun")
+
+#     global global_token
+#     try:
+#         # Get the token dynamically
+#         token = global_token
+        
+#         # Headers with the dynamic token
+#         headers = {
+#             "Authorization": f"Bearer {token}",
+#             "Content-Type": "application/json"
+#         }
+
+
+
+#         system_user_url = (
+#             f"{CRM_API_URL}/api/data/v9.0/systemusers"
+#             f"?$filter=systemuserid eq {owner_id}"
+#             "&$select=internalemailaddress,fullname"
+#         )
+#         print(system_user_url)
+#         system_user_response = requests.get(system_user_url, headers=headers)
+#         # print("System User Response:", system_user_response.status_code, system_user_response.text) 
+#         system_user_response.raise_for_status()
+
+#         system_user_data = system_user_response.json()
+#         print("printing email")
+#         print(system_user_data)
+#         if not system_user_data.get("value"):
+#             raise HTTPException(status_code=404, detail="No system user found with the given _ownerid_value.")
+
+#         # Extract the email address
+#         print(system_user_data["value"][0].get("internalemailaddress"))
+#         internal_email_address = system_user_data["value"][0].get("internalemailaddress")
+#         print("internal_email_address")
+#         print(internal_email_address)
+       
+#         if not internal_email_address:
+#             raise HTTPException(status_code=404, detail="Internal email address not found.")
+
+#         return {
+        
+#             "internal_email_address": internal_email_address,
+#         }
+
+#     except requests.RequestException as e:
+#         print("Error:", str(e))  # Debugging line
+#         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/retry")
