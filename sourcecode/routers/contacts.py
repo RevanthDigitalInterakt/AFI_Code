@@ -218,15 +218,7 @@ async def map_contact_to_moengage(contact):
             option["state"]: option["label"]
             for option in statecode_metadata_response["options"]
         }
-        # print("statecode_options")
-        # print(statecode_options)
-        # print("statecode")
-        # statecode = contact.get("statecode", None)
-        # print("statecode")
-        # print(statecode)
-        # contact_statecode = statecode_options.get(contact.get("statecode"), "")
-        # print("contact_statecode")
-        # print(contact_statecode)
+        
         print("statecode_options")
         print(statecode_options)
 
@@ -630,93 +622,4 @@ async def fetch_statecode_metadata(attribute: str = Query("statecode", descripti
     except Exception as e:
         print(f"An error occurred: {str(e)}")  # Debug: log any other errors
         raise HTTPException(status_code=500, detail=f"An error occurred while fetching statecode metadata: {str(e)}")
-
-# async def fetch_statecode_metadata(attribute: str = Query("statecode", description="Logical name of the attribute to fetch metadata for")):
-#     global global_token
-
-#     token = global_token
-#     headers = {
-#         "Authorization": f"Bearer {token}",
-#         "Content-Type": "application/json",
-#     }
-
-#     # Updated URL for fetching statecode metadata
-#     metadata_url = f"https://afi-group.crm11.dynamics.com/api/data/v9.2/EntityDefinitions(LogicalName='contact')/Attributes/Microsoft.Dynamics.CRM.StatusAttributeMetadata?$expand=OptionSet"
-
-#     try:
-#         # Fetch metadata
-#         response = httpx.get(metadata_url, headers=headers)
-#         response.raise_for_status()
-
-#         # Extract and return relevant parts of the response
-#         data = response.json()
-
-#         # Check if OptionSet exists in the response
-#         if "OptionSet" not in data or not data["OptionSet"].get("Options"):
-#             raise HTTPException(status_code=404, detail="OptionSet not found or empty in the response")
-
-#         # Extract options with state (value) and label
-#         options = [
-#             {
-#                 "state": option.get("Value"),
-#                 "label": option.get("Label", {}).get("UserLocalizedLabel", {}).get("Label", "No label found"),
-#             }
-#             for option in data["OptionSet"].get("Options", [])
-#         ]
-
-#         return {
-#             "attribute": attribute,
-#             "options": options,
-#         }
-
-#     except httpx.HTTPStatusError as e:
-#         raise HTTPException(status_code=e.response.status_code, detail=f"HTTP Error: {e.response.text}")
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=f"An error occurred while fetching statecode metadata: {str(e)}")
-
-
-# async def fetch_statecode_metadata(attribute: str = Query("statecode", description="Logical name of the attribute to fetch metadata for")):
-#     global global_token
-
-#     token = global_token
-#     headers = {
-#         "Authorization": f"Bearer {token}",
-#         "Content-Type": "application/json",
-#     }
-
-#     # Updated URL for fetching statecode metadata
-#     metadata_url = f"https://afi-group.crm11.dynamics.com/api/data/v9.2/EntityDefinitions(LogicalName='contact')/Attributes/Microsoft.Dynamics.CRM.StatusAttributeMetadata?$expand=OptionSet"
-
-#     try:
-#         # Fetch metadata
-#         response = httpx.get(metadata_url, headers=headers)
-#         response.raise_for_status()
-
-#         # Extract and return relevant parts of the response
-#         data = response.json()
-
-#         # Check if OptionSet exists in the response
-#         if "OptionSet" not in data or not data["OptionSet"].get("Options"):
-#             raise HTTPException(status_code=404, detail="OptionSet not found or empty in the response")
-
-#         attribute_display_name = data.get("Options", {}).get("State", {}).get("Label", "No label found")
-#         # Extract options and labels
-#         options = [
-#             {
-#                 "value": option.get("Value"),
-#                 "label": option.get("Label", {}).get("LocalizedLabel", {}).get("Label", "No label found"),
-#             }
-#             for option in data["OptionSet"].get("Options", [])
-#         ]
-
-#         return {
-#             "attribute": attribute,
-#             "display_name": attribute_display_name,
-#             "options": options,
-#         }
-
-#     except httpx.HTTPStatusError as e:
-#         raise HTTPException(status_code=e.response.status_code, detail=f"HTTP Error: {e.response.text}")
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=f"An error occurred while fetching statecode metadata: {str(e)}")
 
