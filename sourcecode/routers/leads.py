@@ -107,34 +107,34 @@ async def fetch_leads():
             "$expand=parentcontactid($select=emailaddress1),parentaccountid($select=accountnumber)"
         )
 
-        #         # Get the current time and subtract one hour to get the time range
-        # one_hour_ago = (datetime.utcnow() - timedelta(hours=1))
+                # Get the current time and subtract one hour to get the time range
+        one_hour_ago = (datetime.utcnow() - timedelta(hours=1))
 
-        # # Format the DateTimeOffset correctly for CRM API (including UTC timezone)
-        # period = one_hour_ago.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'  # Exclude extra microseconds and add 'Z' for UTC
+        # Format the DateTimeOffset correctly for CRM API (including UTC timezone)
+        period = one_hour_ago.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'  # Exclude extra microseconds and add 'Z' for UTC
 
-        # print(f"Formatted time: {period}")
-        # created_url = (f"{CRM_API_URL}/api/data/v9.0/leads?"
-        #                f"$filter=(createdon ge {period} )&$select={query}&{query2}")
-
-        # modified_url = (f"{CRM_API_URL}/api/data/v9.0/leads?"
-        #                 f"$filter=(modifiedon ge {period})&$select={query}&{query2}")
-        
-
-         # Define the date range in IST
-        ist = timezone(timedelta(hours=5, minutes=30))
-        start_of_day_ist = datetime(2025, 1, 15, 0, 0, 0, tzinfo=ist)
-        end_of_day_ist = datetime(2025, 1, 15, 23, 59, 59, tzinfo=ist)
-
-        # Convert IST to UTC for the API query
-        start_period = start_of_day_ist.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
-        end_period = end_of_day_ist.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
-
+        print(f"Formatted time: {period}")
         created_url = (f"{CRM_API_URL}/api/data/v9.0/leads?"
-                       f"$filter=(createdon ge {start_period} and createdon le {end_period})&$select={query}&{query2}")
+                       f"$filter=(createdon ge {period} )&$select={query}&{query2}")
 
         modified_url = (f"{CRM_API_URL}/api/data/v9.0/leads?"
-                        f"$filter=(modifiedon ge {start_period} and modifiedon le {end_period})&$select={query}&{query2}")
+                        f"$filter=(modifiedon ge {period})&$select={query}&{query2}")
+        
+
+        #  # Define the date range in IST
+        # ist = timezone(timedelta(hours=5, minutes=30))
+        # start_of_day_ist = datetime(2025, 1, 15, 0, 0, 0, tzinfo=ist)
+        # end_of_day_ist = datetime(2025, 1, 15, 23, 59, 59, tzinfo=ist)
+
+        # # Convert IST to UTC for the API query
+        # start_period = start_of_day_ist.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+        # end_period = end_of_day_ist.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+
+        # created_url = (f"{CRM_API_URL}/api/data/v9.0/leads?"
+        #                f"$filter=(createdon ge {start_period} and createdon le {end_period})&$select={query}&{query2}")
+
+        # modified_url = (f"{CRM_API_URL}/api/data/v9.0/leads?"
+        #                 f"$filter=(modifiedon ge {start_period} and modifiedon le {end_period})&$select={query}&{query2}")
 
         
         
