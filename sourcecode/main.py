@@ -1,6 +1,6 @@
 import json
 import boto3
-from datetime import datetime
+from datetime import datetime,timedelta
 from fastapi import FastAPI
 from sourcecode.routers import leads, Accounts, contacts
 from mangum import Mangum
@@ -10,7 +10,7 @@ handler = Mangum(app)
 
 # Initialize the S3 client
 s3 = boto3.client('s3')
-S3_BUCKET_NAME = 'crmtomoe'
+S3_BUCKET_NAME = 'crmtomoetestattributes'
 DAILY_COUNT_FOLDER = 'DailyCount/'  # New folder for daily counts
 
 @app.get("/")
@@ -18,63 +18,125 @@ async def root():
     return {"message": "Please Navigate to Swagger Docs to see end points. Hit /docs with local url"}
 
 def get_files_in_bucket(file_type):
-    """
-    Lists all files in the S3 bucket for a given type (leads, accounts, contacts).
     
-    Args:
-    - file_type (str): Type of file to filter ('leads', 'accounts', 'contacts')
-    
-    Returns:
-    - files (list): List of file keys matching the file type.
-    """
-    response = s3.list_objects_v2(Bucket=S3_BUCKET_NAME)
+    #Lists all files in the 'processedRecords' folder in the S3 bucket for a given type.
+   
+    response = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix="processedRecords/")
     if 'Contents' not in response:
-        print("No files found in the bucket.")
+        print("No files found in the 'processedRecords' folder.")
         return []
 
-    # Filter out files that match the file_type
+    # Filter files by type
     files = [file['Key'] for file in response['Contents'] if file_type in file['Key']]
     return files
 
-async def get_records_for_day(file_type: str, date_str: str):
-    """
-    Aggregates the total records, success, and failure counts for the given file type logs of a given day.
-    
-    Args:
-    - file_type (str): Type of file to filter ('leads', 'accounts', 'contacts')
-    - date_str (str): The date string in 'YYYY-MM-DD' format.
-    
-    Returns:
-    - total_records (int): The total records processed for the day from the specified file type.
-    - success_count (int): The total successful records for the day from the specified file type.
-    - fail_count (int): The total failed records for the day from the specified file type.
-    """
-    total_records = 0
-    success_count = 0
-    fail_count = 0
 
-    # List all files of the given file type
+
+
+async def get_records_for_day(file_type: str, date_str: str):
+    # Initialize counts for all fields
+    success_all = 0
+    fail_all = 0
+    success_created = 0
+    fail_created = 0
+    success_modified = 0
+    fail_modified = 0
+    total_all = 0
+    total_created = 0
+    total_modified = 0
+    moengage_created = 0  # Count for unique emails in "success_records_created"
+    moengage_modified = 0  # Count for unique emails in "success_records_modified"
+
     all_files = get_files_in_bucket(file_type)
     filtered_files = [file for file in all_files if date_str in file]
 
     if not filtered_files:
-        return {"total_records": total_records, "success_count": success_count, "fail_count": fail_count}
+        print(f"No files found for type {file_type} on date {date_str}")
+        return {
+            "success_all": success_all,
+            "fail_all": fail_all,
+            "success_created": success_created,
+            "fail_created": fail_created,
+            "success_modified": success_modified,
+            "fail_modified": fail_modified,
+            "moengage_created": moengage_created,  # Include the count in the return value
+            "moengage_modified": moengage_modified,  # Include the count in the return value
+            "total": {
+                "all": total_all,
+                "created": total_created,
+                "modified": total_modified
+            }
+        }
 
-    # Iterate through the filtered files
     for file_key in filtered_files:
-        # Fetch the file from S3
+        if not file_key.endswith(".json"):
+            print(f"File {file_key} is not a JSON file. Skipping.")
+            continue
+
         obj = s3.get_object(Bucket=S3_BUCKET_NAME, Key=file_key)
-        data = json.loads(obj['Body'].read().decode('utf-8'))
+        body = obj['Body'].read()
 
-        # Process success and failed records from the file
-        processed_count = data.get('success_count', 0)
-        total_records += processed_count
-        success_count += processed_count
+        if not body.strip():  # Skip empty files
+            print(f"File {file_key} is empty. Skipping.")
+            continue
 
-        failed_records = data.get('failed_records', [])
-        fail_count += len(failed_records)
+        try:
+            data = json.loads(body.decode('utf-8'))
+        except json.JSONDecodeError as e:
+            print(f"Invalid JSON in file {file_key}: {e}. Skipping.")
+            continue
 
-    return {"total_records": total_records, "success_count": success_count, "fail_count": fail_count}
+        # Extract success and fail counts for different categories
+        success_all += data.get('success_all', 0)
+        fail_all += data.get('fail_all', 0)
+        success_created += data.get('success_created', 0)
+        fail_created += data.get('fail_created', 0)
+        success_modified += data.get('success_modified', 0)
+        fail_modified += data.get('fail_modified', 0)
+
+        # Extract emails for the "success_records_created" and "success_records_modified" fields
+        # Ensure no duplicates by using set
+        success_created_emails = {record["email"] for record in data.get("success_records_created", []) if record.get("email")}
+        success_modified_emails = {record["email"] for record in data.get("success_records_modified", []) if record.get("email")}
+
+        # Count unique emails
+        moengage_created += len(success_created_emails)
+        moengage_modified += len(success_modified_emails)
+
+        # Determine the appropriate field based on the file type (leads, accounts, contacts)
+        if file_type == 'leads':
+            if 'total_leads' in data:
+                total_all += data['total_leads'].get('all', 0)
+                total_created += data['total_leads'].get('created', 0)
+                total_modified += data['total_leads'].get('modified', 0)
+        elif file_type == 'accounts':
+            if 'total_accounts' in data:
+                total_all += data['total_accounts'].get('all', 0)
+                total_created += data['total_accounts'].get('created', 0)
+                total_modified += data['total_accounts'].get('modified', 0)
+        elif file_type == 'contacts':
+            if 'total_contacts' in data:
+                total_all += data['total_contacts'].get('all', 0)
+                total_created += data['total_contacts'].get('created', 0)
+                total_modified += data['total_contacts'].get('modified', 0)
+
+    return {
+        "success_all": success_all,
+        "fail_all": fail_all,
+        "success_created": success_created,
+        "fail_created": fail_created,
+        "success_modified": success_modified,
+        "fail_modified": fail_modified,
+        "moengage_created": moengage_created,  # Include the count in the return value
+        "moengage_modified": moengage_modified,  # Include the count in the return value
+        "total": {
+            "all": total_all,
+            "created": total_created,
+            "modified": total_modified
+        }
+    }
+
+
 
 def save_daily_count(date_str, counts):
     """
@@ -93,11 +155,12 @@ def save_daily_count(date_str, counts):
     )
     print(f"Daily count saved to {file_key}")
 
+
 # Example usage: Get the total records for leads, accounts, and contacts today
 @app.get("/Total_Records_Today")
 async def total_records_today():
-    date_today = datetime.utcnow().strftime('%Y-%m-%d')
-
+    # date_today = datetime.utcnow().strftime('%Y-%m-%d')
+    date_today=(datetime.utcnow() - timedelta(days=0)).strftime('%Y-%m-%d')
     # Process leads
     lead_data = await get_records_for_day('leads', date_today)
 
@@ -107,7 +170,7 @@ async def total_records_today():
     # Process contacts
     contact_data = await get_records_for_day('contacts', date_today)
 
-    # Compile the counts into a dictionary
+    # Compile the counts into a dictionary-
     total_counts = {
         "leads": lead_data,
         "accounts": account_data,

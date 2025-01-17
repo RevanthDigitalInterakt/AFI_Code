@@ -26,8 +26,10 @@ if secrets:
     CRM_TOKEN_URL = secrets.get("CRM_TOKEN_URL", "")
     CRM_CLIENT_ID = secrets.get("CRM_CLIENT_ID", "")
     CRM_CLIENT_SECRET = secrets.get("CRM_CLIENT_SECRET", "")
-    MOENGAGE_API_URL = secrets.get("MOENGAGE_API_URL", "")
-    moe_token = secrets.get("moe_token", "")
+    # MOENGAGE_API_URL = secrets.get("MOENGAGE_API_URL", "")
+    MOENGAGE_API_URL_Test = secrets.get("MOENGAGE_API_URL_Test", "")
+    # moe_token = secrets.get("moe_token", "")
+    moe_token_test = secrets.get("moe_token_test", "")
 else:
     raise HTTPException(status_code=500, detail="Failed to load secrets")
 
